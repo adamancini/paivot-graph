@@ -58,30 +58,40 @@ search_results="$(obsidian vault="$VAULT" search query="$project" 2>/dev/null \
 search_results="$(printf '%s' "$search_results" | sed '/^$/d')"
 
 if [ -z "$search_results" ]; then
-    echo "[VAULT] Project: $project"
-    echo "No existing vault knowledge found for this project."
-    echo "Consider creating a project note: obsidian vault=\"$VAULT\" create name=\"$project\" path=\"projects/$project.md\" content=\"---"
-    echo "type: project"
-    echo "project: $project"
-    echo "status: active"
-    echo "created: $(date +%Y-%m-%d)"
-    echo "---"
-    echo ""
-    echo "# $project\" silent"
-    exit 0
+    search_results="(none found -- this is a new project to the vault)"
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Output structured context
+# 5. Output structured context + operating mode
 # ---------------------------------------------------------------------------
-echo "[VAULT] Project: $project"
-echo "Relevant vault knowledge found:"
-echo ""
-echo "$search_results"
-echo ""
-echo "Consult these notes before starting work:"
-echo "  obsidian vault=\"$VAULT\" read file=\"$project\""
-echo ""
-echo "Remember: Update the vault with decisions, patterns, and debug insights as you work."
+cat <<CONTEXT
+[VAULT] Project: $project
+Relevant vault knowledge:
+
+$search_results
+
+CONTEXT
+
+# ---------------------------------------------------------------------------
+# 6. Inject default operating mode
+# ---------------------------------------------------------------------------
+cat <<'MODE'
+[VAULT] Operating mode for this session:
+
+BEFORE STARTING: Read the vault notes listed above. Do not rediscover what is already known.
+  obsidian vault="Claude" read file="<note>"
+
+WHILE WORKING: Capture knowledge as it emerges -- do not wait for the end.
+  - After making a decision (chose X over Y): create a decision note
+  - After solving a non-obvious bug: create a debug note
+  - After discovering a reusable pattern: create a pattern note
+  Use: obsidian vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="..." silent
+
+BEFORE ENDING: Update the project index note with what was accomplished.
+  obsidian vault="Claude" append file="<Project>" content="## Session update (<date>)
+  - <what was done>"
+
+This is not optional. Knowledge that is not captured is knowledge that will be rediscovered at cost.
+MODE
 
 exit 0
