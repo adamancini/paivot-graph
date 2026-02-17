@@ -1,18 +1,29 @@
 PLUGIN_DIR := $(shell pwd)
 PLUGIN_NAME := paivot-graph
 
-.PHONY: install uninstall test lint help
+.PHONY: install update uninstall test lint help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
 
-install: ## Install plugin locally (claude plugin add)
-	claude plugin add "$(PLUGIN_DIR)"
-	@echo "$(PLUGIN_NAME) installed. Restart Claude Code sessions for hooks to take effect."
+install: ## Register marketplace and install plugin
+	@claude plugin marketplace add "$(PLUGIN_DIR)" 2>/dev/null \
+		&& echo "Marketplace registered." \
+		|| echo "Marketplace already registered."
+	@claude plugin install "$(PLUGIN_NAME)@$(PLUGIN_NAME)" 2>/dev/null \
+		&& echo "Plugin installed." \
+		|| echo "Plugin already installed -- run 'make update' to pick up changes."
+	@echo "Restart Claude Code sessions for hooks to take effect."
 
-uninstall: ## Remove plugin
-	claude plugin remove "$(PLUGIN_NAME)"
+update: ## Push local changes to the installed plugin (bump version first)
+	claude plugin marketplace update "$(PLUGIN_NAME)"
+	claude plugin update "$(PLUGIN_NAME)@$(PLUGIN_NAME)"
+	@echo "Restart Claude Code sessions for changes to take effect."
+
+uninstall: ## Remove plugin and marketplace
+	claude plugin uninstall "$(PLUGIN_NAME)@$(PLUGIN_NAME)"
+	claude plugin marketplace remove "$(PLUGIN_NAME)"
 	@echo "$(PLUGIN_NAME) removed."
 
 lint: ## Run shellcheck on hook scripts
