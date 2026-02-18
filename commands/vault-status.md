@@ -1,45 +1,49 @@
 ---
 description: Show Obsidian vault health -- note counts by folder, recent notes, and overall state
-allowed-tools: ["Bash"]
+allowed-tools: ["Bash", "Read", "Glob", "Grep"]
 ---
 
 # Vault Status
 
 Show the current state and health of the Obsidian knowledge vault.
 
+**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+
 ## Steps
 
-1. **Check if Obsidian CLI is available**:
+1. **Check if vault directory exists**:
    ```bash
-   command -v obsidian
+   test -d "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
    ```
-   If not available, report and suggest installation.
+   If not, report and exit.
 
-2. **Gather vault statistics** by running these commands:
+2. **Gather vault statistics** by counting files per folder:
 
-   Count notes by folder:
-   ```bash
-   for folder in methodology conventions decisions patterns debug concepts projects people _inbox; do
-     count=$(obsidian vault="Claude" search query="path:$folder/" 2>/dev/null | grep -c "." || echo "0")
-     echo "$folder: $count"
-   done
+   Use Glob to count notes in each folder:
+   ```
+   Glob: pattern="methodology/*.md" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
+   Glob: pattern="conventions/*.md" path="..."
+   Glob: pattern="decisions/*.md" path="..."
+   Glob: pattern="patterns/*.md" path="..."
+   Glob: pattern="debug/*.md" path="..."
+   Glob: pattern="concepts/*.md" path="..."
+   Glob: pattern="projects/*.md" path="..."
+   Glob: pattern="people/*.md" path="..."
+   Glob: pattern="_inbox/*.md" path="..."
    ```
 
-   List recently modified notes (search broadly):
-   ```bash
-   obsidian vault="Claude" search query="status:active" 2>/dev/null || echo "No results"
-   ```
+   List recently modified notes (Glob results are sorted by modification time).
 
 3. **Search for potential issues**:
 
    Notes still in inbox (need triage):
-   ```bash
-   obsidian vault="Claude" search query="path:_inbox/" 2>/dev/null || echo "None"
+   ```
+   Glob: pattern="_inbox/*.md" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
    ```
 
-   Notes with missing frontmatter (search for notes without type):
-   ```bash
-   obsidian vault="Claude" search query="type:" 2>/dev/null || echo "Unable to check"
+   Notes with missing frontmatter:
+   ```
+   Grep: pattern="^type:" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude" output_mode="count"
    ```
 
 4. **Present the report**:
@@ -75,13 +79,13 @@ Show the current state and health of the Obsidian knowledge vault.
    - If a folder is empty: "No <type> notes yet -- consider capturing <type> knowledge"
    - If vault is healthy: "Vault is well-organized. Keep capturing knowledge as you work."
 
-## If Obsidian CLI is unavailable
+## If vault directory is missing
 
 ```
 ## Vault Status
 
-Obsidian CLI is not available. Cannot query vault.
+Vault directory not found at expected path.
+Expected: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude
 
-To install: https://github.com/Acylation/obsidian-cli
-Ensure Obsidian is running for the CLI to connect.
+Ensure Obsidian is installed and the "Claude" vault exists.
 ```

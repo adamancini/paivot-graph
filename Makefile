@@ -1,7 +1,7 @@
 PLUGIN_DIR := $(shell pwd)
 PLUGIN_NAME := paivot-graph
 
-.PHONY: install update uninstall test lint help
+.PHONY: install update uninstall test lint seed build-vlt install-vlt help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -26,15 +26,29 @@ uninstall: ## Remove plugin and marketplace
 	claude plugin marketplace remove "$(PLUGIN_NAME)"
 	@echo "$(PLUGIN_NAME) removed."
 
-lint: ## Run shellcheck on hook scripts
-	shellcheck hooks/*.sh
+seed: ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
+	scripts/seed-vault-direct.sh
+
+build-vlt: ## Build the vlt CLI (fast Obsidian vault tool)
+	cd tools/vlt && go build -o ../../bin/vlt .
+	@echo "Built: bin/vlt"
+
+install-vlt: ## Install vlt to GOPATH/bin
+	cd tools/vlt && go install .
+	@echo "Installed: $$(go env GOPATH)/bin/vlt"
+
+lint: ## Run shellcheck on all shell scripts
+	shellcheck hooks/*.sh scripts/*.sh
 
 test: lint ## Run all checks (shellcheck + functional)
 	@echo "--- Functional checks ---"
 	@echo "Checking hook scripts are executable..."
 	@test -x hooks/vault-session-start.sh || (echo "FAIL: vault-session-start.sh not executable" && exit 1)
 	@test -x hooks/vault-pre-compact.sh || (echo "FAIL: vault-pre-compact.sh not executable" && exit 1)
-	@echo "OK: Hook scripts are executable"
+	@test -x hooks/vault-stop.sh || (echo "FAIL: vault-stop.sh not executable" && exit 1)
+	@test -x hooks/vault-session-end.sh || (echo "FAIL: vault-session-end.sh not executable" && exit 1)
+	@test -x scripts/seed-vault.sh || (echo "FAIL: seed-vault.sh not executable" && exit 1)
+	@echo "OK: All scripts are executable"
 	@echo ""
 	@echo "Checking hooks.json is valid JSON..."
 	@python3 -c "import json; json.load(open('hooks/hooks.json'))" || (echo "FAIL: hooks.json is not valid JSON" && exit 1)
@@ -44,6 +58,24 @@ test: lint ## Run all checks (shellcheck + functional)
 	@python3 -c "import json; json.load(open('.claude-plugin/plugin.json'))" || (echo "FAIL: plugin.json is not valid JSON" && exit 1)
 	@echo "OK: plugin.json is valid JSON"
 	@echo ""
+	@echo "Checking hooks.json registers all 4 hook events..."
+	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; assert all(k in h for k in ['SessionStart','PreCompact','Stop','SessionEnd']), 'missing hook events'" \
+		|| (echo "FAIL: hooks.json missing required events" && exit 1)
+	@echo "OK: All 4 hook events registered"
+	@echo ""
+	@echo "Checking all 8 agent vault loaders exist..."
+	@for agent in sr-pm pm developer architect designer business-analyst anchor retro; do \
+		test -f agents/$$agent.md || (echo "FAIL: agents/$$agent.md not found" && exit 1); \
+	done
+	@echo "OK: All 8 agent vault loaders present"
+	@echo ""
+	@echo "Checking vault loaders reference vault paths..."
+	@for agent in sr-pm pm developer architect designer business-analyst anchor retro; do \
+		grep -q 'iCloud~md~obsidian/Documents/Claude/methodology/' agents/$$agent.md || (echo "FAIL: agents/$$agent.md missing vault path" && exit 1); \
+	done
+	@grep -q 'iCloud~md~obsidian/Documents/Claude' skills/vault-knowledge/SKILL.md || (echo "FAIL: SKILL.md missing vault path" && exit 1)
+	@echo "OK: All vault loaders reference vault paths"
+	@echo ""
 	@echo "Checking session-start hook exits 0 without obsidian..."
 	@echo '{}' | PATH=/usr/bin:/bin hooks/vault-session-start.sh >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: session-start graceful degradation" || echo "FAIL: session-start did not exit 0"
@@ -51,5 +83,13 @@ test: lint ## Run all checks (shellcheck + functional)
 	@echo "Checking pre-compact hook exits 0..."
 	@hooks/vault-pre-compact.sh >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pre-compact exits 0" || echo "FAIL: pre-compact did not exit 0"
+	@echo ""
+	@echo "Checking stop hook exits 0..."
+	@hooks/vault-stop.sh >/dev/null 2>&1; \
+		test $$? -eq 0 && echo "OK: stop exits 0" || echo "FAIL: stop did not exit 0"
+	@echo ""
+	@echo "Checking session-end hook exits 0..."
+	@echo '{}' | hooks/vault-session-end.sh >/dev/null 2>&1; \
+		test $$? -eq 0 && echo "OK: session-end exits 0" || echo "FAIL: session-end did not exit 0"
 	@echo ""
 	@echo "All checks passed."

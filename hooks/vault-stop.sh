@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# vault-stop.sh -- Soft capture reminder when Claude tries to stop.
+#
+# Reads the Stop Capture Checklist from the vault (or uses static fallback).
+# Outputs a reminder to stdout. Exits 0 (soft reminder, not hard block).
+#
+# To make this a hard block, change exit 0 to exit 2 and update the vault
+# note to say "DO NOT STOP UNTIL CAPTURE IS CONFIRMED".
+
+set -euo pipefail
+
+VAULT_DIR="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
+
+# ---------------------------------------------------------------------------
+# Try to read the checklist from the vault
+# ---------------------------------------------------------------------------
+checklist=""
+checklist_file="$VAULT_DIR/conventions/Stop Capture Checklist.md"
+if [ -f "$checklist_file" ]; then
+    checklist="$(cat "$checklist_file")"
+fi
+
+# ---------------------------------------------------------------------------
+# Output checklist (vault or fallback)
+# ---------------------------------------------------------------------------
+if [ -n "$checklist" ]; then
+    echo "[VAULT] Stop capture check (from vault):"
+    echo ""
+    echo "$checklist"
+else
+    cat <<'FALLBACK'
+[VAULT] Stop capture check:
+
+Before ending this session, confirm you have considered each of these:
+
+- [ ] Did you capture any DECISIONS made this session?
+- [ ] Did you capture any PATTERNS discovered?
+- [ ] Did you capture any DEBUG INSIGHTS?
+- [ ] Did you update the PROJECT INDEX NOTE?
+
+If none apply (trivial session), that is fine -- but confirm it was considered.
+
+Use Write tool to create notes in: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox/
+FALLBACK
+fi
+
+exit 0

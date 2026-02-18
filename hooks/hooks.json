@@ -1,5 +1,5 @@
 {
-  "description": "paivot-graph hooks -- vault consultation on session start, knowledge capture before compaction",
+  "description": "paivot-graph hooks -- vault consultation, knowledge capture, stop reminder, session logging",
   "hooks": {
     "SessionStart": [
       {
@@ -20,6 +20,30 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/vault-pre-compact.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/vault-stop.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-end.sh",
             "timeout": 10
           }
         ]

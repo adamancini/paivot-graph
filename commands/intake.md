@@ -7,6 +7,8 @@ allowed-tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "Task"
 
 Collect user feedback about the current state of the product, then delegate to the Sr. PM agent to create properly structured stories.
 
+**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+
 ## Phase 1: Collect Raw Feedback
 
 Say: "Ready for feedback. Describe each issue -- include screenshots if you have them. Say 'that's all' when done."
@@ -24,16 +26,24 @@ Before spawning the Sr. PM agent, YOU must gather context and pass it in the pro
 
 ### 2a. Fetch vault knowledge
 
-```bash
-obsidian vault="Claude" search query="<project-name>"
+First, read the vault-backed operating mode:
+```
+Read: /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/conventions/Session Operating Mode.md
 ```
 
-For each relevant note found, read it:
-```bash
-obsidian vault="Claude" read file="<note-title>"
+Then check for any prior session logs for this project:
+```
+Read: /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/projects/<project-name>.md
 ```
 
-Collect all vault content (decisions, patterns, debug notes) relevant to this project.
+Then search for all relevant knowledge:
+```
+Grep: pattern="<project-name>" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
+```
+
+For each relevant note found, read it with the Read tool.
+
+Collect all vault content (decisions, patterns, debug notes, prior session logs) relevant to this project.
 
 ### 2b. Detect the project's tech stack
 
@@ -86,7 +96,7 @@ Work through the approved backlog top-to-bottom. For each story:
 
 1. **Read the full story** from beads (`bd show <id>`)
 2. **Load the mandatory skills** listed in the story's MANDATORY SKILLS TO REVIEW section. If the section says "None identified" but the project uses a platform with known skills (macOS, web, mobile), load the relevant platform skills anyway.
-3. **Consult the vault** for relevant prior knowledge
+3. **Consult the vault** for relevant prior knowledge (use Grep to search, Read to load notes)
 4. **Show your approach** before writing code. If the fix touches interaction flow or visual design, describe before/after. Wait for user approval on non-trivial changes.
 5. **Implement the fix.** Build and verify.
 6. **Close the story** (`bd close <id>`)
@@ -98,4 +108,4 @@ Work through the approved backlog top-to-bottom. For each story:
 - No speculative refactoring. Only fix what is in the backlog.
 - Every UI change must follow platform conventions. Load the relevant skills even if the story doesn't explicitly list them.
 - If a fix reveals a deeper problem, create a NEW story for it (via the Sr. PM agent if it needs proper decomposition) rather than scope-creeping the current one.
-- After completing all stories, run `/vault-capture` for a final knowledge pass.
+- After completing all stories, run `/vault-evolve` to refine vault content from session experience.

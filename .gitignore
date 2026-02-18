@@ -11,3 +11,7 @@ Thumbs.db
 
 # Claude Code local files
 .claude/*.local.md
+
+# Build artifacts
+bin/
+tools/vlt/vlt

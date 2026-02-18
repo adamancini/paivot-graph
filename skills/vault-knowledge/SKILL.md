@@ -1,232 +1,98 @@
 ---
 name: vault-knowledge
 description: This skill should be used when working on any project to understand how to effectively interact with the Obsidian knowledge vault. It teaches when to capture knowledge, what to capture, how to format vault notes, and how to search effectively. Use when you need to "save to vault", "update vault", "capture a decision", "record a pattern", "log a debug insight", or when starting/ending a significant work session.
-version: 0.1.0
+version: 0.3.0
 ---
 
-# Vault Knowledge -- Effective Obsidian Vault Interaction
+# Vault Knowledge (Vault-Backed)
 
-## Overview
+The Obsidian vault ("Claude") lives on disk. Interact with it directly using Read, Write, Grep, and Glob tools -- this is much faster than the obsidian CLI.
 
-The Obsidian vault ("Claude") is your persistent knowledge layer. It survives across sessions, across projects, and across context compactions. Every interaction with a project is an opportunity to compound knowledge.
+**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
 
-The vault CLI: `obsidian vault="Claude" <command>`
+Read the full skill content from the vault:
 
-## When to Capture Knowledge
+    /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/conventions/Vault Knowledge Skill.md
 
-Capture immediately after any of these events:
+The vault version is authoritative. Follow it completely.
 
-### Architectural Decisions
-- Chose one approach over another (e.g., REST vs GraphQL, monorepo vs polyrepo)
-- Established a convention (naming, file structure, error handling)
-- Made a trade-off (performance vs readability, simplicity vs flexibility)
+If the vault is unavailable, use these minimal instructions:
 
-### Debugging Breakthroughs
-- Solved a non-obvious bug (especially if it took multiple attempts)
-- Found a sharp edge in a library or framework
-- Discovered an environment-specific issue
+## Fallback: Core Vault Interaction Patterns
 
-### Pattern Discoveries
-- Found a reusable solution that could apply to other projects
-- Identified an anti-pattern worth avoiding
-- Developed a workflow that improved productivity
+The Obsidian vault ("Claude") is your persistent knowledge layer. It survives across sessions, projects, and context compactions.
 
-### Significant Feature Completion
-- Completed a major feature or milestone
-- Established a new integration
-- Changed the project architecture
+**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
 
-### Session Boundaries
-- At the start of a session: consult the vault for project context
-- Before context compaction: save everything learned (this is your last chance)
-- At the end of significant work: distill and capture
-
-## What to Capture (by Note Type)
-
-### Decisions (`decisions/`)
-
-Record the decision, the reasoning, and what was NOT chosen:
+### Vault Structure
 
 ```
-obsidian vault="Claude" create name="Use SQLite for local state" path="_inbox/Use SQLite for local state.md" content="---
-type: decision
-project: my-project
-status: active
-confidence: high
-created: 2025-01-15
----
-
-# Use SQLite for local state
-
-## Decision
-Use SQLite via sqlx for persisting local application state.
-
-## Rationale
-- Single-file database, no server needed
-- Excellent concurrent read performance
-- Built-in WAL mode for write performance
-- sqlx provides compile-time query verification
-
-## Alternatives considered
-- JSON files: too fragile for concurrent access
-- PostgreSQL: overkill for local-only state
-- In-memory only: loses state on restart
-
-## Consequences
-- Must include sqlite3 as dependency
-- Migration story needed for schema changes
-- [[sqlx compile-time checks]] require DATABASE_URL at build time" silent
+methodology/  # Agent prompts, paivot methodology
+conventions/  # Working conventions (testing, python, communication)
+decisions/    # Architectural and design decisions with rationale
+patterns/     # Reusable solutions and idioms
+debug/        # Problems and their resolutions
+concepts/     # Language, framework, and tool knowledge
+projects/     # One index note per project
+people/       # User preferences and team conventions
+_inbox/       # Unsorted capture, triage into proper folders
+_templates/   # Note templates
 ```
 
-### Patterns (`patterns/`)
+### When to Capture
 
-Record when to use it, how to implement it, and where it has been applied:
+- **Decisions**: chose X over Y, established a convention, made a trade-off
+- **Debug insights**: solved a non-obvious bug, found a sharp edge
+- **Patterns**: found a reusable solution, identified an anti-pattern
+- **Session boundaries**: start (read), before compaction (save), end (update)
 
-```
-obsidian vault="Claude" create name="Graceful degradation in CLI hooks" path="_inbox/Graceful degradation in CLI hooks.md" content="---
-type: pattern
-project: paivot-graph
-stack: [bash, claude-code]
-status: active
-created: 2025-01-15
----
+### How to Read
 
-# Graceful degradation in CLI hooks
+Use the Read tool directly on the vault file:
 
-## When to use
-Any CLI hook that depends on an external tool (obsidian, git, etc.).
+    Read: /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/<folder>/<Note Title>.md
 
-## Implementation
-1. Check if the dependency exists: command -v <tool>
-2. If missing, output a soft warning (not an error)
-3. Always exit 0 -- never block the parent process
-4. Provide install/setup instructions in the warning
+### How to Search
 
-## Applied in
-- [[paivot-graph]] SessionStart hook
-- [[paivot-graph]] PreCompact hook" silent
-```
+Use the Grep tool on the vault directory:
 
-### Debug Notes (`debug/`)
+    Grep: pattern="<term>" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
 
-Record symptoms, root cause, and the fix:
+To find notes by filename:
 
-```
-obsidian vault="Claude" create name="obsidian CLI hangs on large search" path="_inbox/obsidian CLI hangs on large search.md" content="---
-type: debug
-project: paivot-graph
-stack: [bash, obsidian]
-status: active
-created: 2025-01-15
----
+    Glob: pattern="**/<partial-name>*.md" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
 
-# obsidian CLI hangs on large search
+### How to Create Notes
 
-## Symptoms
-obsidian search with broad query hangs for 10+ seconds, sometimes times out.
+Use the Write tool to create a new file:
 
-## Root cause
-Obsidian must be running for the CLI to work. When Obsidian is closed,
-the CLI blocks waiting for a connection.
+    Write: /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox/<Title>.md
 
-## Fix
-Add a timeout wrapper and check for Obsidian process before calling CLI.
-timeout 5 obsidian vault=Claude search query=term || echo 'Obsidian not responding'" silent
-```
+    ---
+    type: decision | pattern | debug
+    project: <project>
+    status: active
+    created: <YYYY-MM-DD>
+    ---
 
-### Project Notes (`projects/`)
+    # <Title>
 
-One index note per project, linking to all related knowledge:
+    <content>
 
-```
-obsidian vault="Claude" create name="paivot-graph" path="projects/paivot-graph.md" content="---
-type: project
-project: paivot-graph
-stack: [bash, claude-code, obsidian]
-domain: developer-tools
-status: active
-created: 2025-01-15
----
+### How to Append to Notes
 
-# paivot-graph
+Use the Edit tool to add content at the end of an existing note, or Read the note and Write it back with additions.
 
-Claude Code plugin for Obsidian vault knowledge integration.
+### How to Move/Triage Notes
 
-## Architecture
-- SessionStart hook for automatic vault consultation
-- PreCompact hook for knowledge capture reminders
-- vault-knowledge skill for teaching interaction patterns
-- /vault-capture and /vault-status commands
+Use Bash `mv` to move notes from `_inbox/` to their proper folder:
 
-## Related
-- [[Graceful degradation in CLI hooks]]
-- [[Use obsidian CLI for vault access]]
-- [[Paivot cognitive architecture]]" silent
-```
+    mv "<vault-path>/_inbox/<Note>.md" "<vault-path>/decisions/<Note>.md"
 
-## How to Search the Vault
+### Frontmatter Requirements
 
-### Finding existing knowledge
-```bash
-obsidian vault="Claude" search query="<term>"
-```
-Use specific terms: project names, technology names, error messages.
+Every note MUST have: type, project, status, created. Optional: stack, domain, confidence.
 
-### Reading a specific note
-```bash
-obsidian vault="Claude" read file="<Note Title>"
-```
+### The Rule
 
-### Updating an existing note
-```bash
-obsidian vault="Claude" append file="<Note Title>" content="
-
-## New section
-Additional content here"
-```
-
-### Moving notes from inbox
-After creating notes in `_inbox/`, triage them to proper folders:
-```bash
-obsidian vault="Claude" move path="_inbox/My Note.md" to="decisions/My Note.md"
-```
-
-## Frontmatter Requirements
-
-Every note MUST have frontmatter with these properties:
-
-```yaml
-type: methodology | convention | decision | pattern | debug | concept | project | person
-project: <project-name>
-stack: [<languages-and-frameworks>]    # optional but recommended
-domain: <business-domain>              # optional
-status: active | superseded | archived
-confidence: high | medium | low        # for decisions
-created: <YYYY-MM-DD>
-```
-
-## Cross-linking
-
-Use `[[wikilinks]]` to connect related notes:
-- Decisions that led to patterns: `"This pattern emerged from [[Decision Name]]"`
-- Debug notes that informed decisions: `"See [[Bug Title]] for why we chose this approach"`
-- Project notes that reference all related knowledge
-
-## The Knowledge Compounding Principle
-
-Every project should leave the vault richer than it found it. This means:
-
-1. **Before starting**: Read what exists. Do not rediscover what is already known.
-2. **While working**: Capture as you go. Do not wait for the end.
-3. **Before compaction**: Save everything. This is the last chance before memory loss.
-4. **After completing**: Update the project index note with what was accomplished.
-
-Knowledge that is not captured is knowledge that will be rediscovered (at cost). Knowledge that is captured compounds -- it makes every future session faster and more informed.
-
-## Integration with Paivot Methodology
-
-When running Paivot execution cycles:
-- Retro learnings flow into `methodology/` notes, updating the methodology itself
-- Sprint decisions go into `decisions/` with sprint context
-- Patterns discovered during execution go into `patterns/`
-- The methodology evolves through practice, not just theory
+Knowledge not captured is knowledge rediscovered at cost. Capture as you go, not at the end.

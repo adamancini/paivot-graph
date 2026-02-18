@@ -1,11 +1,13 @@
 ---
 description: Trigger a deliberate knowledge capture pass -- review the current session and save decisions, patterns, and debug insights to the Obsidian vault
-allowed-tools: ["Bash", "Read", "Grep", "Glob"]
+allowed-tools: ["Bash", "Read", "Write", "Edit", "Grep", "Glob"]
 ---
 
 # Vault Capture
 
 Perform a deliberate knowledge capture pass for the current session. This command reviews what has happened in the conversation and creates/updates vault notes.
+
+**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
 
 ## Steps
 
@@ -20,10 +22,15 @@ Perform a deliberate knowledge capture pass for the current session. This comman
 3. **Detect the current project** from git remote or directory name.
 
 4. **Check existing vault knowledge** for this project:
-   ```bash
-   obsidian vault="Claude" search query="<project-name>"
+
+   Use Grep to search the vault:
    ```
-   Read the project note if it exists to avoid duplicating knowledge.
+   Grep: pattern="<project-name>" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
+   ```
+   Read the project note if it exists to avoid duplicating knowledge:
+   ```
+   Read: /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/projects/<project-name>.md
+   ```
 
 5. **For each piece of capturable knowledge**, create a vault note:
 
@@ -32,8 +39,13 @@ Perform a deliberate knowledge capture pass for the current session. This comman
    - Add `[[wikilinks]]` to related notes
    - Keep notes atomic -- one idea per note
 
-   ```bash
-   obsidian vault="Claude" create name="<Note Title>" path="_inbox/<Note Title>.md" content="---
+   Use Write tool to create:
+   ```
+   /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox/<Note Title>.md
+   ```
+   With content:
+   ```markdown
+   ---
    type: <decision|pattern|debug>
    project: <project>
    status: active
@@ -42,23 +54,29 @@ Perform a deliberate knowledge capture pass for the current session. This comman
 
    # <Note Title>
 
-   <content>" silent
+   <content>
    ```
 
 6. **Update the project index note** if it exists:
-   ```bash
-   obsidian vault="Claude" append file="<Project>" content="
+
+   Use Edit tool to append to:
+   ```
+   /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/projects/<Project>.md
+   ```
+   Append:
+   ```markdown
 
    ## Session update (<date>)
    - <what was accomplished>
-   - New notes: [[<Note 1>]], [[<Note 2>]]"
+   - New notes: [[<Note 1>]], [[<Note 2>]]
    ```
 
-   If no project note exists, create one in `projects/`.
+   If no project note exists, create one in `projects/` using Write.
 
 7. **Triage inbox notes** to their proper folders:
    ```bash
-   obsidian vault="Claude" move path="_inbox/<Note>.md" to="decisions/<Note>.md"
+   mv "/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox/<Note>.md" \
+      "/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/decisions/<Note>.md"
    ```
 
 8. **Report what was captured** in a summary:
@@ -83,12 +101,11 @@ Perform a deliberate knowledge capture pass for the current session. This comman
    Total: N new notes, M updated notes
    ```
 
-## If Obsidian CLI is unavailable
+## If vault directory is missing
 
-If `obsidian` is not found:
-1. Report that the CLI is not available
-2. Suggest installation
-3. Offer to output the notes as markdown that the user can manually add to their vault
+If the vault path does not exist:
+1. Report that the vault directory was not found
+2. Offer to output the notes as markdown that the user can manually add to their vault
 
 ## If nothing to capture
 
