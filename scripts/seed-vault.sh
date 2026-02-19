@@ -4,11 +4,17 @@
 # Writes files directly to the vault directory on disk. Obsidian picks them up
 # automatically via iCloud sync. No obsidian CLI needed.
 #
-# Idempotent: checks if each file exists before creating.
+# Usage:
+#   seed-vault.sh           Idempotent: creates missing notes, skips existing.
+#   seed-vault.sh --force   Overwrites existing notes with latest content.
 
 set -euo pipefail
 
 TODAY="$(date +%Y-%m-%d)"
+FORCE=false
+if [[ "${1:-}" == "--force" ]]; then
+    FORCE=true
+fi
 
 # Vault on disk
 VAULT_DIR="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude"
@@ -20,6 +26,7 @@ PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
 count_dir="$(mktemp -d)"
 trap 'rm -rf "$count_dir"' EXIT
 echo 0 > "$count_dir/created"
+echo 0 > "$count_dir/updated"
 echo 0 > "$count_dir/skipped"
 
 # ---------------------------------------------------------------------------
@@ -32,6 +39,7 @@ extract_body() {
 }
 
 inc_created() { echo $(( $(cat "$count_dir/created") + 1 )) > "$count_dir/created"; }
+inc_updated() { echo $(( $(cat "$count_dir/updated") + 1 )) > "$count_dir/updated"; }
 inc_skipped() { echo $(( $(cat "$count_dir/skipped") + 1 )) > "$count_dir/skipped"; }
 
 write_note() {
@@ -39,9 +47,16 @@ write_note() {
     local full_path="$VAULT_DIR/$dest"
 
     if [ -f "$full_path" ]; then
-        echo "  SKIP: $dest (already exists)"
-        inc_skipped
-        return 0
+        if [ "$FORCE" = true ]; then
+            cat > "$full_path"
+            echo "  UPDATED: $dest"
+            inc_updated
+            return 0
+        else
+            echo "  SKIP: $dest (already exists)"
+            inc_skipped
+            return 0
+        fi
     fi
 
     # Ensure parent directory exists
@@ -59,6 +74,11 @@ write_note() {
 
 echo "paivot-graph vault seeder"
 echo "========================="
+if [ "$FORCE" = true ]; then
+    echo "Mode: force (overwriting existing notes)"
+else
+    echo "Mode: safe (skipping existing notes)"
+fi
 echo ""
 
 if [ ! -d "$VAULT_DIR" ]; then
@@ -264,4 +284,4 @@ SCL_EOF
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "Done. Created: $(cat "$count_dir/created"), Skipped: $(cat "$count_dir/skipped")"
+echo "Done. Created: $(cat "$count_dir/created"), Updated: $(cat "$count_dir/updated"), Skipped: $(cat "$count_dir/skipped")"

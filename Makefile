@@ -1,7 +1,7 @@
 PLUGIN_DIR := $(shell pwd)
 PLUGIN_NAME := paivot-graph
 
-.PHONY: install update uninstall test lint seed build-vlt install-vlt help
+.PHONY: install update uninstall test lint seed reseed build-vlt install-vlt help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -28,6 +28,9 @@ uninstall: ## Remove plugin and marketplace
 
 seed: ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
 	scripts/seed-vault.sh
+
+reseed: ## Force-update all vault notes with latest plugin content
+	scripts/seed-vault.sh --force
 
 build-vlt: ## Build the vlt CLI (fast Obsidian vault tool)
 	cd tools/vlt && go build -o ../../bin/vlt .
