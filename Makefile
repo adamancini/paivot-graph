@@ -27,7 +27,7 @@ uninstall: ## Remove plugin and marketplace
 	@echo "$(PLUGIN_NAME) removed."
 
 seed: ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
-	scripts/seed-vault-direct.sh
+	scripts/seed-vault.sh
 
 build-vlt: ## Build the vlt CLI (fast Obsidian vault tool)
 	cd tools/vlt && go build -o ../../bin/vlt .

@@ -8,8 +8,8 @@
     {
       "name": "paivot-graph",
       "source": "./",
-      "description": "Obsidian vault knowledge integration -- automatic consultation and capture",
-      "version": "0.3.1"
+      "description": "Obsidian vault as runtime -- agents, skills, and hooks read from the vault and evolve with every session",
+      "version": "1.0.1"
     }
   ]
 }
