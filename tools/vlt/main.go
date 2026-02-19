@@ -13,11 +13,12 @@ import (
 	"strings"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
 var knownCommands = map[string]bool{
 	"read": true, "search": true, "create": true,
 	"append": true, "move": true, "property:set": true,
+	"backlinks": true, "links": true,
 	"vaults": true, "help": true, "version": true,
 }
 
@@ -75,6 +76,10 @@ func main() {
 		err = cmdMove(vaultDir, params)
 	case "property:set":
 		err = cmdPropertySet(vaultDir, params)
+	case "backlinks":
+		err = cmdBacklinks(vaultDir, params)
+	case "links":
+		err = cmdLinks(vaultDir, params)
 	default:
 		die("unknown command: %s", cmd)
 	}
@@ -126,8 +131,10 @@ Commands:
   create       name="<title>" path="<path>" [content="<text>"] [silent]
                                                          Create a note
   append       file="<title>" [content="<text>"]         Append to a note
-  move         path="<from>" to="<to>"                   Move/rename a note
+  move         path="<from>" to="<to>"                   Move/rename (updates wikilinks)
   property:set file="<title>" name="<key>" value="<val>" Set frontmatter property
+  backlinks    file="<title>"                            Find notes linking to this note
+  links        file="<title>"                            List outgoing links (flags broken)
   vaults                                                 List discovered vaults
 
 Options:
@@ -145,7 +152,10 @@ Examples:
   vlt vault="Claude" create name="My Note" path="_inbox/My Note.md" content="# Hello" silent
   echo "## Update" | vlt vault="Claude" append file="My Note"
   vlt vault="Claude" move path="_inbox/Note.md" to="decisions/Note.md"
+  vlt vault="Claude" move path="_inbox/Old Name.md" to="decisions/New Name.md"  # updates all [[Old Name]] refs
   vlt vault="Claude" property:set file="Note" name="status" value="archived"
+  vlt vault="Claude" backlinks file="Session Operating Mode"
+  vlt vault="Claude" links file="Developer Agent"
   vlt vaults
 `)
 }

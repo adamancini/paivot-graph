@@ -200,6 +200,8 @@ func cmdAppend(vaultDir string, params map[string]string) error {
 }
 
 // cmdMove moves a note from one path to another within the vault.
+// If the filename changes (rename, not just folder move), all wikilinks
+// referencing the old title are updated vault-wide.
 func cmdMove(vaultDir string, params map[string]string) error {
 	from := params["path"]
 	to := params["to"]
@@ -219,11 +221,85 @@ func cmdMove(vaultDir string, params map[string]string) error {
 		return err
 	}
 
+	oldTitle := strings.TrimSuffix(filepath.Base(from), ".md")
+	newTitle := strings.TrimSuffix(filepath.Base(to), ".md")
+
 	if err := os.Rename(fromPath, toPath); err != nil {
 		return err
 	}
 
 	fmt.Printf("moved: %s -> %s\n", from, to)
+
+	// If the filename changed, update wikilinks across the vault
+	if oldTitle != newTitle {
+		count, err := updateVaultLinks(vaultDir, oldTitle, newTitle)
+		if err != nil {
+			return fmt.Errorf("moved file but failed updating links: %w", err)
+		}
+		if count > 0 {
+			fmt.Printf("updated [[%s]] -> [[%s]] in %d file(s)\n", oldTitle, newTitle, count)
+		}
+	}
+
+	return nil
+}
+
+// cmdBacklinks finds all notes that contain wikilinks to the given title.
+func cmdBacklinks(vaultDir string, params map[string]string) error {
+	title := params["file"]
+	if title == "" {
+		return fmt.Errorf("backlinks requires file=\"<title>\"")
+	}
+
+	results, err := findBacklinks(vaultDir, title)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range results {
+		fmt.Println(r)
+	}
+	return nil
+}
+
+// cmdLinks lists outgoing wikilinks from a note, reporting which resolve
+// and which are broken.
+func cmdLinks(vaultDir string, params map[string]string) error {
+	title := params["file"]
+	if title == "" {
+		return fmt.Errorf("links requires file=\"<title>\"")
+	}
+
+	path, err := resolveNote(vaultDir, title)
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	links := parseWikilinks(string(data))
+	if len(links) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	for _, link := range links {
+		if seen[link.Title] {
+			continue
+		}
+		seen[link.Title] = true
+
+		resolved, resolveErr := resolveNote(vaultDir, link.Title)
+		if resolveErr != nil {
+			fmt.Printf("  BROKEN: [[%s]]\n", link.Title)
+		} else {
+			relPath, _ := filepath.Rel(vaultDir, resolved)
+			fmt.Printf("  [[%s]] -> %s\n", link.Title, relPath)
+		}
+	}
 	return nil
 }
 

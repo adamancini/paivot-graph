@@ -233,6 +233,132 @@ func TestCmdMove(t *testing.T) {
 	}
 }
 
+func TestCmdMove_RenameUpdatesLinks(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
+	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
+
+	// The note being renamed
+	os.WriteFile(
+		filepath.Join(vaultDir, "_inbox", "Old Name.md"),
+		[]byte("# Old Name\n\nContent here.\n"),
+		0644,
+	)
+
+	// Another note that references it
+	os.WriteFile(
+		filepath.Join(vaultDir, "methodology", "Developer Agent.md"),
+		[]byte("# Developer\n\nSee [[Old Name]] and [[Old Name#Section|details]].\n"),
+		0644,
+	)
+
+	params := map[string]string{
+		"path": "_inbox/Old Name.md",
+		"to":   "decisions/New Name.md",
+	}
+	if err := cmdMove(vaultDir, params); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+
+	// Verify the referencing file was updated
+	data, _ := os.ReadFile(filepath.Join(vaultDir, "methodology", "Developer Agent.md"))
+	got := string(data)
+
+	if contains(got, "[[Old Name]]") {
+		t.Error("old wikilink [[Old Name]] still present")
+	}
+	if !contains(got, "[[New Name]]") {
+		t.Error("new wikilink [[New Name]] not found")
+	}
+	if !contains(got, "[[New Name#Section|details]]") {
+		t.Error("new wikilink [[New Name#Section|details]] not found")
+	}
+}
+
+func TestCmdMove_FolderOnlyNoLinkUpdate(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(vaultDir, "_inbox"), 0755)
+
+	// The note being moved (same filename, different folder)
+	os.WriteFile(
+		filepath.Join(vaultDir, "_inbox", "Note.md"),
+		[]byte("# Note\n"),
+		0644,
+	)
+
+	// Another note referencing it
+	os.WriteFile(
+		filepath.Join(vaultDir, "Referrer.md"),
+		[]byte("See [[Note]] here.\n"),
+		0644,
+	)
+
+	params := map[string]string{
+		"path": "_inbox/Note.md",
+		"to":   "decisions/Note.md",
+	}
+	if err := cmdMove(vaultDir, params); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+
+	// Link should remain unchanged (title didn't change)
+	data, _ := os.ReadFile(filepath.Join(vaultDir, "Referrer.md"))
+	if string(data) != "See [[Note]] here.\n" {
+		t.Errorf("referrer was unexpectedly modified: %q", string(data))
+	}
+}
+
+func TestCmdBacklinks(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
+
+	os.WriteFile(
+		filepath.Join(vaultDir, "methodology", "Developer Agent.md"),
+		[]byte("Read [[Session Operating Mode]] first.\n"),
+		0644,
+	)
+	os.WriteFile(
+		filepath.Join(vaultDir, "methodology", "Retro Agent.md"),
+		[]byte("# Retro\n\nNo links to SOM.\n"),
+		0644,
+	)
+
+	// Just verify no error (output goes to stdout)
+	params := map[string]string{"file": "Session Operating Mode"}
+	if err := cmdBacklinks(vaultDir, params); err != nil {
+		t.Fatalf("backlinks: %v", err)
+	}
+}
+
+func TestCmdLinks(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
+
+	// Target note with outgoing links
+	os.WriteFile(
+		filepath.Join(vaultDir, "methodology", "Developer Agent.md"),
+		[]byte("# Developer\n\nSee [[Session Operating Mode]] and [[Nonexistent Note]].\n"),
+		0644,
+	)
+
+	// One of the linked notes exists
+	os.WriteFile(
+		filepath.Join(vaultDir, "Session Operating Mode.md"),
+		[]byte("# SOM\n"),
+		0644,
+	)
+
+	// Just verify no error (output goes to stdout)
+	params := map[string]string{"file": "Developer Agent"}
+	if err := cmdLinks(vaultDir, params); err != nil {
+		t.Fatalf("links: %v", err)
+	}
+}
+
 func TestCmdPropertySet(t *testing.T) {
 	vaultDir := t.TempDir()
 
