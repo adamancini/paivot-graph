@@ -21,7 +21,8 @@ var knownCommands = map[string]bool{
 	"property:set": true, "property:remove": true, "properties": true,
 	"backlinks": true, "links": true, "orphans": true, "unresolved": true,
 	"tags": true, "tag": true, "files": true,
-	"tasks": true, "daily": true,
+	"tasks": true, "daily": true, "templates": true, "templates:apply": true,
+	"bookmarks": true, "bookmarks:add": true, "bookmarks:remove": true,
 	"vaults": true, "help": true, "version": true,
 }
 
@@ -113,6 +114,16 @@ func main() {
 		err = cmdTasks(vaultDir, params, flags)
 	case "daily":
 		err = cmdDaily(vaultDir, params)
+	case "templates":
+		err = cmdTemplates(vaultDir, params, format)
+	case "templates:apply":
+		err = cmdTemplatesApply(vaultDir, params)
+	case "bookmarks":
+		err = cmdBookmarks(vaultDir, format)
+	case "bookmarks:add":
+		err = cmdBookmarksAdd(vaultDir, params)
+	case "bookmarks:remove":
+		err = cmdBookmarksRemove(vaultDir, params)
 	default:
 		die("unknown command: %s", cmd)
 	}
@@ -189,6 +200,15 @@ Tag commands:
 
 Task commands:
   tasks          [file="<title>"] [path="<dir>"] [done] [pending]  List tasks (checkboxes)
+
+Template commands:
+  templates                                                    List available templates
+  templates:apply template="<name>" name="<title>" path="<path>"  Create note from template
+
+Bookmark commands:
+  bookmarks                                                    List bookmarked file paths
+  bookmarks:add  file="<title>"                                Add a bookmark for a note
+  bookmarks:remove file="<title>"                              Remove a bookmark
 
 Search:
   search         query="<term> [key:value]" [context="N"]    Search by title, content, properties
@@ -272,6 +292,13 @@ Examples:
   vlt vault="Claude" create name="Note" path="_inbox/Note.md" content="# Note" timestamps
   vlt vault="Claude" append file="Note" content="more" timestamps
   VLT_TIMESTAMPS=1 vlt vault="Claude" write file="Note" content="# New Body"
+  vlt vault="Claude" templates
+  vlt vault="Claude" templates --json
+  vlt vault="Claude" templates:apply template="Meeting Notes" name="Q1 Planning" path="meetings/Q1 Planning.md"
+  vlt vault="Claude" bookmarks
+  vlt vault="Claude" bookmarks --json
+  vlt vault="Claude" bookmarks:add file="Important Note"
+  vlt vault="Claude" bookmarks:remove file="Old Note"
   vlt vaults
 `)
 }
