@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1323,4 +1324,56 @@ func readStdinIfPiped() string {
 		return ""
 	}
 	return string(data)
+}
+
+// cmdURI generates an obsidian:// URI for a note resolved by title.
+// The URI format is: obsidian://open?vault=VAULT&file=PATH[&heading=H][&block=B]
+// Vault name and file path are URL-encoded. The .md extension is stripped.
+// Path separators use forward slash (/).
+func cmdURI(vaultDir, vaultName string, params map[string]string) error {
+	title := params["file"]
+	if title == "" {
+		return fmt.Errorf("uri requires file=\"<title>\"")
+	}
+
+	path, err := resolveNote(vaultDir, title)
+	if err != nil {
+		return err
+	}
+
+	// Get relative path from vault root, strip .md extension
+	relPath, _ := filepath.Rel(vaultDir, path)
+	relPath = strings.TrimSuffix(relPath, ".md")
+
+	// Normalize path separators to forward slash (for Windows compatibility)
+	relPath = filepath.ToSlash(relPath)
+
+	// URL-encode vault name and file path
+	// We encode each path segment individually to preserve / as %2F in the
+	// final URI (Obsidian expects path-encoded values, not query-encoded).
+	encodedVault := encodeURIComponent(vaultName)
+	encodedFile := encodeURIComponent(relPath)
+
+	uri := fmt.Sprintf("obsidian://open?vault=%s&file=%s", encodedVault, encodedFile)
+
+	// Optional heading fragment
+	if heading := params["heading"]; heading != "" {
+		uri += "&heading=" + encodeURIComponent(heading)
+	}
+
+	// Optional block fragment
+	if block := params["block"]; block != "" {
+		uri += "&block=" + encodeURIComponent(block)
+	}
+
+	fmt.Println(uri)
+	return nil
+}
+
+// encodeURIComponent percent-encodes a string for use as a URI query parameter
+// value. Encodes spaces as %20, slashes as %2F, ampersands as %26, plus as %2B,
+// and other reserved characters. Uses url.QueryEscape (which encodes everything
+// aggressively) then replaces + with %20 since Obsidian expects %20 for spaces.
+func encodeURIComponent(s string) string {
+	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }

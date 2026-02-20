@@ -23,6 +23,7 @@ var knownCommands = map[string]bool{
 	"tags": true, "tag": true, "files": true,
 	"tasks": true, "daily": true, "templates": true, "templates:apply": true,
 	"bookmarks": true, "bookmarks:add": true, "bookmarks:remove": true,
+	"uri": true,
 	"vaults": true, "help": true, "version": true,
 }
 
@@ -124,6 +125,8 @@ func main() {
 		err = cmdBookmarksAdd(vaultDir, params)
 	case "bookmarks:remove":
 		err = cmdBookmarksRemove(vaultDir, params)
+	case "uri":
+		err = cmdURI(vaultDir, vaultName, params)
 	default:
 		die("unknown command: %s", cmd)
 	}
@@ -209,6 +212,9 @@ Bookmark commands:
   bookmarks                                                    List bookmarked file paths
   bookmarks:add  file="<title>"                                Add a bookmark for a note
   bookmarks:remove file="<title>"                              Remove a bookmark
+
+URI commands:
+  uri            file="<title>" [heading="<H>"] [block="<B>"]  Generate obsidian:// URI for a note
 
 Search:
   search         query="<term> [key:value]" [context="N"]    Search by title, content, properties
@@ -299,6 +305,9 @@ Examples:
   vlt vault="Claude" bookmarks --json
   vlt vault="Claude" bookmarks:add file="Important Note"
   vlt vault="Claude" bookmarks:remove file="Old Note"
+  vlt vault="Claude" uri file="Session Operating Mode"
+  vlt vault="Claude" uri file="Design Doc" heading="Architecture"
+  vlt vault="Claude" uri file="Note" block="block-id"
   vlt vaults
 `)
 }
