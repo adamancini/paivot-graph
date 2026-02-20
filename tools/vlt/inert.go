@@ -117,8 +117,30 @@ func maskInlineCode(text string) string {
 	return string(buf)
 }
 
+// obsidianCommentPattern matches Obsidian-style comments: %% content %%.
+// Uses (?s) (DOTALL) so that . matches newlines, enabling multiline comments.
+// The match is non-greedy (*?) to handle multiple comments in the same text.
+var obsidianCommentPattern = regexp.MustCompile(`(?s)%%(.+?)%%`)
+
+// maskObsidianComments masks the content inside Obsidian comments (%% ... %%).
+// The %% delimiters themselves are preserved; only the content between them is
+// replaced with spaces (newlines preserved). This pass runs AFTER fenced code
+// blocks and inline code, so %% inside already-masked code zones will not
+// trigger false comment boundaries.
+func maskObsidianComments(text string) string {
+	buf := []byte(text)
+
+	for _, loc := range obsidianCommentPattern.FindAllSubmatchIndex(buf, -1) {
+		// loc[2], loc[3] = start, end of group 1 (content between %% delimiters)
+		maskRegion(buf, loc[2], loc[3])
+	}
+
+	return string(buf)
+}
+
 func init() {
-	// Order matters: fenced code blocks first, then inline code.
+	// Order matters: fenced code blocks first, then inline code, then comments.
 	registerMaskPass(maskFencedCodeBlocks)
 	registerMaskPass(maskInlineCode)
+	registerMaskPass(maskObsidianComments)
 }
