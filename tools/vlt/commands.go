@@ -837,6 +837,208 @@ func cmdFiles(vaultDir string, params map[string]string, showTotal bool, format 
 	return nil
 }
 
+// sectionBounds holds the line range of a section identified by findSection.
+// HeadingLine is the 0-based index of the heading line itself.
+// ContentStart is the 0-based index of the first content line after the heading.
+// ContentEnd is the 0-based index one past the last content line (exclusive).
+// If the section has no content, ContentStart == ContentEnd.
+type sectionBounds struct {
+	HeadingLine  int
+	ContentStart int
+	ContentEnd   int
+}
+
+// headingLevel returns the Markdown heading level (number of leading # chars).
+// Returns 0 if the line is not a heading.
+func headingLevel(line string) int {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "#") {
+		return 0
+	}
+	level := 0
+	for _, ch := range trimmed {
+		if ch == '#' {
+			level++
+		} else {
+			break
+		}
+	}
+	// Must be followed by a space or end of line to be a valid heading
+	if level >= len(trimmed) || trimmed[level] == ' ' {
+		return level
+	}
+	return 0
+}
+
+// findSection locates a heading in the given lines and returns its bounds.
+// The heading parameter should include the # prefix (e.g., "## Section A").
+// Heading match is case-insensitive and trims whitespace.
+// The section extends from the heading to the line before the next heading of
+// equal or higher level (or EOF). This operates on RAW content, not masked.
+func findSection(lines []string, heading string) (sectionBounds, bool) {
+	heading = strings.TrimSpace(heading)
+	targetLevel := headingLevel(heading)
+	if targetLevel == 0 {
+		return sectionBounds{}, false
+	}
+
+	headingTextLower := strings.ToLower(heading)
+
+	for i, line := range lines {
+		lineTrimmed := strings.TrimSpace(line)
+		if strings.ToLower(lineTrimmed) == headingTextLower {
+			// Found the heading. Now find the end of the section.
+			contentStart := i + 1
+			contentEnd := len(lines) // default: extends to EOF
+
+			for j := contentStart; j < len(lines); j++ {
+				lvl := headingLevel(lines[j])
+				if lvl > 0 && lvl <= targetLevel {
+					contentEnd = j
+					break
+				}
+			}
+
+			return sectionBounds{
+				HeadingLine:  i,
+				ContentStart: contentStart,
+				ContentEnd:   contentEnd,
+			}, true
+		}
+	}
+
+	return sectionBounds{}, false
+}
+
+// cmdPatch performs surgical edits to a note: heading-targeted or line-targeted
+// replace/delete. The delete parameter controls whether content is removed
+// (true) or replaced with new content (false).
+func cmdPatch(vaultDir string, params map[string]string, delete bool) error {
+	title := params["file"]
+	if title == "" {
+		return fmt.Errorf("patch requires file=\"<title>\"")
+	}
+
+	path, err := resolveNote(vaultDir, title)
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(data)
+	lines := strings.Split(text, "\n")
+
+	heading := params["heading"]
+	lineSpec := params["line"]
+
+	if heading == "" && lineSpec == "" {
+		return fmt.Errorf("patch requires heading=\"<heading>\" or line=\"<N>\" (or line=\"<N-M>\")")
+	}
+
+	content := params["content"]
+
+	var result []string
+
+	if heading != "" {
+		// Heading-targeted patch
+		bounds, found := findSection(lines, heading)
+		if !found {
+			return fmt.Errorf("heading %q not found in %q", heading, title)
+		}
+
+		if delete {
+			// Delete mode: remove heading + content
+			result = append(result, lines[:bounds.HeadingLine]...)
+			result = append(result, lines[bounds.ContentEnd:]...)
+		} else {
+			// Replace mode: keep heading, replace content
+			result = append(result, lines[:bounds.ContentStart]...)
+			// Add new content (split into lines if multiline)
+			if content != "" {
+				contentLines := strings.Split(content, "\n")
+				result = append(result, contentLines...)
+			}
+			result = append(result, lines[bounds.ContentEnd:]...)
+		}
+	} else {
+		// Line-targeted patch
+		startLine, endLine, err := parseLineSpec(lineSpec)
+		if err != nil {
+			return err
+		}
+
+		// Validate range (1-based to 0-based)
+		if startLine < 1 || endLine < startLine {
+			return fmt.Errorf("invalid line specification: %s", lineSpec)
+		}
+		if startLine > len(lines) {
+			return fmt.Errorf("line %d is beyond file length (%d lines); out of range", startLine, len(lines))
+		}
+		if endLine > len(lines) {
+			return fmt.Errorf("line %d is beyond file length (%d lines); out of range", endLine, len(lines))
+		}
+
+		// Convert to 0-based
+		start := startLine - 1
+		end := endLine // exclusive (endLine is 1-based, so endLine = 0-based + 1)
+
+		if delete {
+			result = append(result, lines[:start]...)
+			result = append(result, lines[end:]...)
+		} else {
+			result = append(result, lines[:start]...)
+			result = append(result, content)
+			result = append(result, lines[end:]...)
+		}
+	}
+
+	output := strings.Join(result, "\n")
+	return os.WriteFile(path, []byte(output), 0644)
+}
+
+// parseLineSpec parses a line specification like "5" or "5-10" into start and end
+// line numbers (1-based, inclusive).
+func parseLineSpec(spec string) (start, end int, err error) {
+	if idx := strings.Index(spec, "-"); idx >= 0 {
+		startStr := spec[:idx]
+		endStr := spec[idx+1:]
+		start, err = parseInt(startStr)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid line range start: %s", startStr)
+		}
+		end, err = parseInt(endStr)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid line range end: %s", endStr)
+		}
+		return start, end, nil
+	}
+
+	start, err = parseInt(spec)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid line number: %s", spec)
+	}
+	return start, start, nil
+}
+
+// parseInt parses a string as a positive integer.
+func parseInt(s string) (int, error) {
+	n := 0
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return 0, fmt.Errorf("not a number: %s", s)
+		}
+		n = n*10 + int(ch-'0')
+	}
+	if n == 0 {
+		return 0, fmt.Errorf("not a positive number: %s", s)
+	}
+	return n, nil
+}
+
 // readStdinIfPiped reads all of stdin if it's being piped (not a terminal).
 // Returns empty string if stdin is a terminal.
 func readStdinIfPiped() string {

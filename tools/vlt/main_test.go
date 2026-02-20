@@ -1186,6 +1186,593 @@ func TestE2EWriteCommand(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// patch command tests (VLT-54o)
+// ---------------------------------------------------------------------------
+
+// Unit test 1: replace section content under ## heading
+func TestPatchByHeadingReplace(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "# Title\n\n## Section A\ncontent a\nmore a\n\n## Section B\ncontent b\n"
+	notePath := filepath.Join(vaultDir, "Note.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Note",
+		"heading": "## Section A",
+		"content": "replaced content\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if !strings.Contains(got, "## Section A\nreplaced content\n") {
+		t.Errorf("section not replaced correctly.\ngot: %q", got)
+	}
+	if !strings.Contains(got, "## Section B\ncontent b\n") {
+		t.Error("Section B was affected by patching Section A")
+	}
+	if strings.Contains(got, "content a") {
+		t.Error("old section A content still present")
+	}
+}
+
+// Unit test 2: other sections remain unchanged after heading patch
+func TestPatchByHeadingPreservesOtherSections(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## First\nfirst content\n## Second\nsecond content\n## Third\nthird content\n"
+	notePath := filepath.Join(vaultDir, "Multi.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Multi",
+		"heading": "## Second",
+		"content": "new second\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if !strings.Contains(got, "## First\nfirst content\n") {
+		t.Error("First section was modified")
+	}
+	if !strings.Contains(got, "## Third\nthird content\n") {
+		t.Error("Third section was modified")
+	}
+	if !strings.Contains(got, "## Second\nnew second\n") {
+		t.Errorf("Second section not correctly replaced. got: %q", got)
+	}
+}
+
+// Unit test 3: heading match is case-insensitive
+func TestPatchByHeadingCaseInsensitive(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## My Section\noriginal\n"
+	notePath := filepath.Join(vaultDir, "Case.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Case",
+		"heading": "## my section",
+		"content": "patched\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "original") {
+		t.Error("case-insensitive heading match failed, old content still present")
+	}
+	if !strings.Contains(got, "patched") {
+		t.Error("patched content not found")
+	}
+}
+
+// Unit test 4: subsections included in scope (section extends to next equal-or-higher heading)
+func TestPatchByHeadingScopeToNextEqualLevel(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Section A\ncontent a\n### Subsection\nsub content\n## Section B\ncontent b\n"
+	notePath := filepath.Join(vaultDir, "Scope.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Scope",
+		"heading": "## Section A",
+		"content": "all new\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	// Subsection and its content should be replaced
+	if strings.Contains(got, "### Subsection") {
+		t.Error("subsection heading should have been replaced")
+	}
+	if strings.Contains(got, "sub content") {
+		t.Error("subsection content should have been replaced")
+	}
+	if !strings.Contains(got, "## Section A\nall new\n") {
+		t.Errorf("section A not correctly replaced. got: %q", got)
+	}
+	if !strings.Contains(got, "## Section B\ncontent b\n") {
+		t.Error("Section B was affected")
+	}
+}
+
+// Unit test 5: section extends to end of file when at EOF
+func TestPatchByHeadingAtEOF(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Earlier\nearlier content\n## Last Section\nlast content\nmore last\n"
+	notePath := filepath.Join(vaultDir, "EOF.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "EOF",
+		"heading": "## Last Section",
+		"content": "replaced last\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "last content") {
+		t.Error("old EOF section content still present")
+	}
+	if !strings.Contains(got, "## Last Section\nreplaced last\n") {
+		t.Errorf("EOF section not replaced. got: %q", got)
+	}
+}
+
+// Unit test 6: delete heading + content
+func TestPatchByHeadingDelete(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Keep\nkeep content\n## Remove\nremove content\n## Also Keep\nalso keep\n"
+	notePath := filepath.Join(vaultDir, "Del.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Del",
+		"heading": "## Remove",
+	}
+	if err := cmdPatch(vaultDir, params, true); err != nil {
+		t.Fatalf("patch delete: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "## Remove") {
+		t.Error("deleted heading still present")
+	}
+	if strings.Contains(got, "remove content") {
+		t.Error("deleted section content still present")
+	}
+	if !strings.Contains(got, "## Keep\nkeep content\n") {
+		t.Error("Keep section was affected")
+	}
+	if !strings.Contains(got, "## Also Keep\nalso keep\n") {
+		t.Error("Also Keep section was affected")
+	}
+}
+
+// Unit test 7: single line replacement
+func TestPatchByLineReplace(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\nline two\nline three\nline four\n"
+	notePath := filepath.Join(vaultDir, "Lines.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Lines",
+		"line":    "2",
+		"content": "REPLACED",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch line: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "line two") {
+		t.Error("old line 2 still present")
+	}
+	if !strings.Contains(got, "REPLACED") {
+		t.Error("replacement content not found")
+	}
+	// Check structure: line 1 and 3-4 should be intact
+	lines := strings.Split(got, "\n")
+	if lines[0] != "line one" {
+		t.Errorf("line 1 changed: %q", lines[0])
+	}
+	if lines[2] != "line three" {
+		t.Errorf("line 3 changed: %q", lines[2])
+	}
+}
+
+// Unit test 8: line range replacement
+func TestPatchByLineRangeReplace(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\n"
+	notePath := filepath.Join(vaultDir, "Range.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Range",
+		"line":    "3-5",
+		"content": "REPLACED BLOCK",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch line range: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "line 3") || strings.Contains(got, "line 4") || strings.Contains(got, "line 5") {
+		t.Error("replaced lines still present")
+	}
+	if !strings.Contains(got, "REPLACED BLOCK") {
+		t.Error("replacement content not found")
+	}
+	if !strings.Contains(got, "line 1") || !strings.Contains(got, "line 2") {
+		t.Error("lines before range were affected")
+	}
+	if !strings.Contains(got, "line 6") {
+		t.Error("line after range was affected")
+	}
+}
+
+// Unit test 9: single line deletion
+func TestPatchByLineDelete(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line 1\nline 2\nline 3\nline 4\n"
+	notePath := filepath.Join(vaultDir, "DelLine.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file": "DelLine",
+		"line": "3",
+	}
+	if err := cmdPatch(vaultDir, params, true); err != nil {
+		t.Fatalf("patch delete line: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "line 3") {
+		t.Error("deleted line still present")
+	}
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Errorf("expected 3 lines, got %d: %v", len(lines), lines)
+	}
+}
+
+// Unit test 10: line range deletion
+func TestPatchByLineRangeDelete(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line 1\nline 2\nline 3\nline 4\nline 5\n"
+	notePath := filepath.Join(vaultDir, "DelRange.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file": "DelRange",
+		"line": "2-4",
+	}
+	if err := cmdPatch(vaultDir, params, true); err != nil {
+		t.Fatalf("patch delete range: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	if strings.Contains(got, "line 2") || strings.Contains(got, "line 3") || strings.Contains(got, "line 4") {
+		t.Error("deleted lines still present")
+	}
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Errorf("expected 2 lines, got %d: %v", len(lines), lines)
+	}
+	if lines[0] != "line 1" || lines[1] != "line 5" {
+		t.Errorf("remaining lines wrong: %v", lines)
+	}
+}
+
+// Unit test 11: error for line number beyond file length
+func TestPatchLineOutOfRange(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line 1\nline 2\n"
+	notePath := filepath.Join(vaultDir, "Short.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Short",
+		"line":    "10",
+		"content": "nope",
+	}
+	err := cmdPatch(vaultDir, params, false)
+	if err == nil {
+		t.Fatal("expected error for out-of-range line")
+	}
+	if !strings.Contains(err.Error(), "out of range") && !strings.Contains(err.Error(), "beyond") {
+		t.Errorf("error should mention range issue, got: %v", err)
+	}
+}
+
+// Unit test 12: error for nonexistent heading
+func TestPatchHeadingNotFound(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Existing\ncontent\n"
+	notePath := filepath.Join(vaultDir, "NoHead.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "NoHead",
+		"heading": "## Nonexistent",
+		"content": "nope",
+	}
+	err := cmdPatch(vaultDir, params, false)
+	if err == nil {
+		t.Fatal("expected error for nonexistent heading")
+	}
+	if !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "heading") {
+		t.Errorf("error should mention heading not found, got: %v", err)
+	}
+}
+
+// Unit test 13: error without file=
+func TestPatchRequiresFile(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	params := map[string]string{
+		"heading": "## Heading",
+		"content": "content",
+	}
+	err := cmdPatch(vaultDir, params, false)
+	if err == nil {
+		t.Fatal("expected error when file= not provided")
+	}
+	if !strings.Contains(err.Error(), "file") {
+		t.Errorf("error should mention 'file', got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Integration tests (real files, no mocks)
+// ---------------------------------------------------------------------------
+
+// Integration test 14: create real note with multiple sections, patch one, read back
+func TestPatchByHeadingIntegration(t *testing.T) {
+	vaultDir := t.TempDir()
+	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
+
+	content := "---\ntype: methodology\nstatus: active\n---\n\n# Main Title\n\nIntro paragraph.\n\n## Architecture\n\nOriginal architecture description.\nMore details.\n\n## Implementation\n\nImpl details.\n"
+	notePath := filepath.Join(vaultDir, "methodology", "Design Doc.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Design Doc",
+		"heading": "## Architecture",
+		"content": "Completely revised architecture.\nNew approach.\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("integration patch: %v", err)
+	}
+
+	// Read back and verify
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	got := string(data)
+
+	// Heading preserved
+	if !strings.Contains(got, "## Architecture") {
+		t.Error("heading was removed")
+	}
+	// New content present
+	if !strings.Contains(got, "Completely revised architecture.") {
+		t.Error("new content not found")
+	}
+	// Old content gone
+	if strings.Contains(got, "Original architecture description.") {
+		t.Error("old content still present")
+	}
+	// Other section intact
+	if !strings.Contains(got, "## Implementation\n\nImpl details.") {
+		t.Error("Implementation section was affected")
+	}
+	// Frontmatter intact
+	if !strings.Contains(got, "type: methodology") {
+		t.Error("frontmatter lost")
+	}
+}
+
+// Integration test 15: create real note, patch specific line, verify with file read
+func TestPatchByLineIntegration(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "---\nstatus: draft\n---\n\n# Title\n\nLine A\nLine B\nLine C\n"
+	notePath := filepath.Join(vaultDir, "LineNote.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	// Line 7 is "Line A" (1-based: 1=---, 2=status:draft, 3=---, 4=empty, 5=# Title, 6=empty, 7=Line A)
+	params := map[string]string{
+		"file":    "LineNote",
+		"line":    "7",
+		"content": "PATCHED A",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("integration line patch: %v", err)
+	}
+
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	got := string(data)
+
+	if strings.Contains(got, "Line A") {
+		t.Error("old line A still present")
+	}
+	if !strings.Contains(got, "PATCHED A") {
+		t.Error("patched content not found")
+	}
+	// Frontmatter intact
+	if !strings.Contains(got, "status: draft") {
+		t.Error("frontmatter affected")
+	}
+}
+
+// Integration test 16: delete a section, verify remaining content intact
+func TestPatchDeleteSectionIntegration(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "---\ntype: note\n---\n\n## Keep This\n\nKeep content.\n\n## Delete This\n\nDelete content.\n\n## Also Keep\n\nAlso keep content.\n"
+	notePath := filepath.Join(vaultDir, "Sections.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Sections",
+		"heading": "## Delete This",
+	}
+	if err := cmdPatch(vaultDir, params, true); err != nil {
+		t.Fatalf("integration delete: %v", err)
+	}
+
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	got := string(data)
+
+	if strings.Contains(got, "## Delete This") {
+		t.Error("deleted heading still present")
+	}
+	if strings.Contains(got, "Delete content.") {
+		t.Error("deleted content still present")
+	}
+	if !strings.Contains(got, "## Keep This") || !strings.Contains(got, "Keep content.") {
+		t.Error("Keep This section affected")
+	}
+	if !strings.Contains(got, "## Also Keep") || !strings.Contains(got, "Also keep content.") {
+		t.Error("Also Keep section affected")
+	}
+	// Frontmatter intact
+	if !strings.Contains(got, "type: note") {
+		t.Error("frontmatter affected")
+	}
+}
+
+// Integration test 17: patch does not corrupt frontmatter
+func TestPatchPreservesFrontmatter(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "---\ntype: decision\nstatus: active\ncreated: 2026-02-19\naliases: [Dec1, First]\n---\n\n## Summary\n\nSummary content.\n\n## Details\n\nDetail content.\n"
+	notePath := filepath.Join(vaultDir, "FMTest.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "FMTest",
+		"heading": "## Summary",
+		"content": "New summary.\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	data, _ := os.ReadFile(notePath)
+	got := string(data)
+
+	// Verify all frontmatter properties
+	yaml, _, hasFM := extractFrontmatter(got)
+	if !hasFM {
+		t.Fatal("frontmatter lost after patch")
+	}
+	if v, ok := frontmatterGetValue(yaml, "type"); !ok || v != "decision" {
+		t.Errorf("type = %q, want 'decision'", v)
+	}
+	if v, ok := frontmatterGetValue(yaml, "status"); !ok || v != "active" {
+		t.Errorf("status = %q, want 'active'", v)
+	}
+	if v, ok := frontmatterGetValue(yaml, "created"); !ok || v != "2026-02-19" {
+		t.Errorf("created = %q, want '2026-02-19'", v)
+	}
+	aliases := frontmatterGetList(yaml, "aliases")
+	if len(aliases) != 2 || aliases[0] != "Dec1" || aliases[1] != "First" {
+		t.Errorf("aliases = %v, want [Dec1, First]", aliases)
+	}
+}
+
+// Integration test 18: patch a section that contained wikilinks, verify backlinks updated
+func TestPatchThenBacklinks(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	// Note with wikilinks in a section
+	content := "## Links\n\nSee [[Target]] for details.\n\n## Other\n\nOther stuff.\n"
+	os.WriteFile(filepath.Join(vaultDir, "Linker.md"), []byte(content), 0644)
+
+	// The target note
+	os.WriteFile(filepath.Join(vaultDir, "Target.md"), []byte("# Target\n"), 0644)
+
+	// Verify backlink exists before patch
+	results, err := findBacklinks(vaultDir, "Target")
+	if err != nil {
+		t.Fatalf("backlinks before patch: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected backlink to Target before patch")
+	}
+
+	// Patch the Links section, removing the wikilink
+	params := map[string]string{
+		"file":    "Linker",
+		"heading": "## Links",
+		"content": "No links here anymore.\n",
+	}
+	if err := cmdPatch(vaultDir, params, false); err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	// Verify backlink is gone after patch
+	results, err = findBacklinks(vaultDir, "Target")
+	if err != nil {
+		t.Fatalf("backlinks after patch: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected no backlinks to Target after patch, got %v", results)
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))
 }

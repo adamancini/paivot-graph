@@ -17,7 +17,7 @@ const version = "0.4.0"
 
 var knownCommands = map[string]bool{
 	"read": true, "search": true, "create": true,
-	"append": true, "prepend": true, "write": true, "move": true, "delete": true,
+	"append": true, "prepend": true, "write": true, "patch": true, "move": true, "delete": true,
 	"property:set": true, "property:remove": true, "properties": true,
 	"backlinks": true, "links": true, "orphans": true, "unresolved": true,
 	"tags": true, "tag": true, "files": true,
@@ -81,6 +81,8 @@ func main() {
 		err = cmdPrepend(vaultDir, params)
 	case "write":
 		err = cmdWrite(vaultDir, params)
+	case "patch":
+		err = cmdPatch(vaultDir, params, flags["delete"])
 	case "move":
 		err = cmdMove(vaultDir, params)
 	case "delete":
@@ -160,6 +162,9 @@ File commands:
   append         file="<title>" [content="<text>"]           Append to end of note
   prepend        file="<title>" [content="<text>"]           Prepend after frontmatter
   write          file="<title>" [content="<text>"]           Replace body (preserve frontmatter)
+  patch          file="<title>" heading="<heading>" [content="<text>"] [delete]  Section-targeted edit
+  patch          file="<title>" line="<N>" [content="<text>"] [delete]           Line-targeted edit
+  patch          file="<title>" line="<N-M>" [content="<text>"] [delete]         Line range edit
   move           path="<from>" to="<to>"                     Move/rename (updates wiki + md links)
   delete         file="<title>" [permanent]                  Trash (or permanently delete)
   files          [folder="<dir>"] [ext="<ext>"] [total]      List vault files
@@ -193,6 +198,7 @@ Options:
   vault="<name>"   Vault name (from Obsidian config), absolute path, or VLT_VAULT env var.
   silent           Suppress output on create.
   permanent        Hard delete instead of .trash.
+  delete           Remove heading+content or line(s) instead of replacing (patch).
   counts           Show note counts with tags.
   total            Show count instead of listing files.
   done             Show only completed tasks.
@@ -221,6 +227,11 @@ Examples:
   echo "## Update" | vlt vault="Claude" append file="My Note"
   vlt vault="Claude" prepend file="My Note" content="New section at top"
   vlt vault="Claude" write file="My Note" content="# Replacement body"
+  vlt vault="Claude" patch file="Note" heading="## Section" content="new content"
+  vlt vault="Claude" patch file="Note" heading="## Section" delete
+  vlt vault="Claude" patch file="Note" line="5" content="replacement line"
+  vlt vault="Claude" patch file="Note" line="5-10" content="replacement block"
+  vlt vault="Claude" patch file="Note" line="5" delete
   vlt vault="Claude" move path="_inbox/Old.md" to="decisions/New.md"
   vlt vault="Claude" delete file="Old Draft"
   vlt vault="Claude" delete file="Old Draft" permanent
