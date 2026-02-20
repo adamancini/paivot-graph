@@ -1,7 +1,7 @@
 PLUGIN_DIR := $(shell pwd)
 PLUGIN_NAME := paivot-graph
 
-.PHONY: install update uninstall test lint seed reseed check-deps help
+.PHONY: install update uninstall test lint seed reseed check-deps fetch-vlt-skill update-vlt-skill help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -18,7 +18,7 @@ check-deps: ## Verify required dependencies are installed
 		(echo "ERROR: claude (Claude Code) is not installed." && exit 1)
 	@echo "OK: claude found"
 
-install: check-deps ## Register marketplace and install plugin
+install: check-deps fetch-vlt-skill ## Register marketplace, install plugin and vlt skill
 	@claude plugin marketplace add "$(PLUGIN_DIR)" 2>/dev/null \
 		&& echo "Marketplace registered." \
 		|| echo "Marketplace already registered."
@@ -26,6 +26,12 @@ install: check-deps ## Register marketplace and install plugin
 		&& echo "Plugin installed." \
 		|| echo "Plugin already installed -- run 'make update' to pick up changes."
 	@echo "Restart Claude Code sessions for hooks to take effect."
+
+fetch-vlt-skill: ## Fetch and install the vlt skill from GitHub (skips if present)
+	scripts/fetch-vlt-skill.sh
+
+update-vlt-skill: ## Force-update the vlt skill from GitHub
+	scripts/fetch-vlt-skill.sh --force
 
 update: ## Push local changes to the installed plugin (bump version first)
 	claude plugin marketplace update "$(PLUGIN_NAME)"
@@ -54,6 +60,7 @@ test: lint ## Run all checks (shellcheck + functional)
 	@test -x hooks/vault-stop.sh || (echo "FAIL: vault-stop.sh not executable" && exit 1)
 	@test -x hooks/vault-session-end.sh || (echo "FAIL: vault-session-end.sh not executable" && exit 1)
 	@test -x scripts/seed-vault.sh || (echo "FAIL: seed-vault.sh not executable" && exit 1)
+	@test -x scripts/fetch-vlt-skill.sh || (echo "FAIL: fetch-vlt-skill.sh not executable" && exit 1)
 	@echo "OK: All scripts are executable"
 	@echo ""
 	@echo "Checking hooks.json is valid JSON..."

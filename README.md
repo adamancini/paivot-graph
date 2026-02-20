@@ -18,6 +18,8 @@ make install
 vlt version   # should print vlt 0.5.0+
 ```
 
+Pre-built binaries are available at [vlt releases](https://github.com/RamXX/vlt/releases) if you don't have Go installed.
+
 Without vlt, the plugin falls back to direct filesystem operations (grep, cat) which are slower, lack vault-aware features (alias resolution, wikilink repair, backlink tracking), and miss the inert zone masking that prevents false positives.
 
 ### 2. Obsidian vault
@@ -39,7 +41,13 @@ cd paivot-graph
 make install
 ```
 
-This registers the plugin with Claude Code's marketplace and installs it. Restart any open Claude Code sessions for hooks to take effect.
+This does three things:
+
+1. Checks that vlt and Claude Code are installed
+2. Fetches the [vlt skill](https://github.com/RamXX/vlt) from GitHub and installs it to `~/.claude/skills/vlt-skill` (teaches Claude how to use vlt effectively)
+3. Registers the plugin with Claude Code's marketplace and installs it
+
+Restart any open Claude Code sessions for hooks to take effect.
 
 ### Seed the vault (first time)
 
@@ -93,6 +101,7 @@ Eight specialized agents that read their full instructions from the vault at run
 | Skill | What it does |
 |-------|--------------|
 | **vault-knowledge** | Teaches agents how to interact with the vault -- when to capture, what to capture, how to format notes |
+| **vlt-skill** | Complete vlt command reference, agentic patterns, and advanced techniques (fetched from GitHub at install time) |
 
 ## How the vault-as-runtime works
 
@@ -120,14 +129,17 @@ _templates/   -- Note templates
 ## Development
 
 ```bash
-make help       # show all targets
-make test       # run all checks (shellcheck + functional)
-make lint       # shellcheck on all scripts
-make seed       # seed vault (idempotent)
-make reseed     # force-update vault notes
-make install    # register and install plugin
-make update     # push local changes to installed plugin
-make uninstall  # remove plugin
+make help              # show all targets
+make test              # run all checks (shellcheck + functional)
+make lint              # shellcheck on all scripts
+make check-deps        # verify vlt and claude are installed
+make fetch-vlt-skill   # fetch vlt skill from GitHub (skips if present)
+make update-vlt-skill  # force-update vlt skill from GitHub
+make seed              # seed vault (idempotent)
+make reseed            # force-update vault notes
+make install           # check deps + fetch vlt skill + install plugin
+make update            # push local changes to installed plugin
+make uninstall         # remove plugin
 ```
 
 ## Verifying the installation
