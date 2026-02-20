@@ -17,7 +17,10 @@ var tagPattern = regexp.MustCompile(`(?:^|[\s(])#([\p{L}\p{N}_/-]+)`)
 
 // parseInlineTags extracts inline #tags from text.
 // Skips pure-numeric tags (Obsidian requires at least one letter).
+// Content inside inert zones (fenced code blocks, etc.) is masked
+// before extraction so those tags are ignored.
 func parseInlineTags(text string) []string {
+	text = maskInertContent(text)
 	matches := tagPattern.FindAllStringSubmatch(text, -1)
 	var tags []string
 	for _, m := range matches {

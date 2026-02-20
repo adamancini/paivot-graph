@@ -24,7 +24,10 @@ type wikilink struct {
 var wikiLinkPattern = regexp.MustCompile(`(!?)\[\[([^\]#|]+?)(?:#(\^?[^\]|]*))?(?:\|([^\]]*))?\]\]`)
 
 // parseWikilinks extracts all wikilinks and embeds from text.
+// Content inside inert zones (fenced code blocks, etc.) is masked
+// before extraction so those references are ignored.
 func parseWikilinks(text string) []wikilink {
+	text = maskInertContent(text)
 	matches := wikiLinkPattern.FindAllStringSubmatch(text, -1)
 	links := make([]wikilink, 0, len(matches))
 	for _, m := range matches {
@@ -183,6 +186,8 @@ func updateVaultMdLinks(vaultDir, oldRelPath, newRelPath string) (int, error) {
 
 // findBacklinks returns relative paths of notes that contain wikilinks or
 // embeds referencing the given title. Case-insensitive.
+// Content inside inert zones (fenced code blocks, etc.) is masked before
+// matching so that references inside code blocks are ignored.
 func findBacklinks(vaultDir, title string) ([]string, error) {
 	pattern := regexp.MustCompile(
 		`(?i)!?\[\[` + regexp.QuoteMeta(title) +
@@ -208,7 +213,8 @@ func findBacklinks(vaultDir, title string) ([]string, error) {
 			return nil
 		}
 
-		if pattern.Match(data) {
+		masked := maskInertContent(string(data))
+		if pattern.MatchString(masked) {
 			relPath, _ := filepath.Rel(vaultDir, path)
 			results = append(results, relPath)
 		}
