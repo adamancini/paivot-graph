@@ -29,7 +29,6 @@ type unresolvedResult struct {
 	Source string `json:"source"`
 }
 
-
 // cmdVaults lists all Obsidian vaults discovered from the config file.
 func cmdVaults(format string) error {
 	vaults, err := discoverVaults()
@@ -443,6 +442,45 @@ func cmdPropertySet(vaultDir string, params map[string]string) error {
 
 	fmt.Printf("set %s=%s in %q\n", propName, propValue, title)
 	return nil
+}
+
+// cmdWrite replaces the body content of an existing note, preserving frontmatter.
+// Content comes from the content= parameter or stdin.
+// If the note has no frontmatter, the entire file content is replaced.
+func cmdWrite(vaultDir string, params map[string]string) error {
+	title := params["file"]
+	if title == "" {
+		return fmt.Errorf("write requires file=\"<title>\"")
+	}
+
+	path, err := resolveNote(vaultDir, title)
+	if err != nil {
+		return err
+	}
+
+	content := params["content"]
+	if content == "" {
+		content = readStdinIfPiped()
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(data)
+	_, bodyStart, hasFM := extractFrontmatter(text)
+
+	var result string
+	if hasFM {
+		lines := strings.Split(text, "\n")
+		frontmatter := strings.Join(lines[:bodyStart], "\n")
+		result = frontmatter + "\n" + content
+	} else {
+		result = content
+	}
+
+	return os.WriteFile(path, []byte(result), 0644)
 }
 
 // cmdPrepend inserts content at the top of a note, after frontmatter if present.
