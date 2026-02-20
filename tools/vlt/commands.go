@@ -16,6 +16,68 @@ type searchResult struct {
 	relPath string
 }
 
+// contextMatch holds a single line-level match with surrounding context.
+type contextMatch struct {
+	File    string   // relative path
+	Line    int      // 1-based line number of the match
+	Match   string   // the matched line text
+	Context []string // surrounding lines including the match line
+}
+
+// lineRange represents an inclusive range of 0-based line indices.
+type lineRange struct {
+	start int
+	end   int
+}
+
+// findMatchLines returns 0-based line indices where query appears (case-insensitive).
+func findMatchLines(lines []string, query string) []int {
+	queryLower := strings.ToLower(query)
+	var matches []int
+	for i, line := range lines {
+		if strings.Contains(strings.ToLower(line), queryLower) {
+			matches = append(matches, i)
+		}
+	}
+	return matches
+}
+
+// expandAndMerge takes match line indices and a context radius, producing merged
+// non-overlapping ranges clamped to [0, totalLines).
+func expandAndMerge(matchLines []int, contextN int, totalLines int) []lineRange {
+	if len(matchLines) == 0 {
+		return nil
+	}
+
+	var ranges []lineRange
+	for _, m := range matchLines {
+		start := m - contextN
+		if start < 0 {
+			start = 0
+		}
+		end := m + contextN
+		if end >= totalLines {
+			end = totalLines - 1
+		}
+		ranges = append(ranges, lineRange{start, end})
+	}
+
+	// Merge overlapping or adjacent ranges
+	merged := []lineRange{ranges[0]}
+	for i := 1; i < len(ranges); i++ {
+		last := &merged[len(merged)-1]
+		if ranges[i].start <= last.end+1 {
+			if ranges[i].end > last.end {
+				last.end = ranges[i].end
+			}
+		} else {
+			merged = append(merged, ranges[i])
+		}
+	}
+
+	return merged
+}
+
 // linkInfo holds outgoing link information.
 type linkInfo struct {
 	Target string `json:"target"`
@@ -57,6 +119,7 @@ func cmdVaults(format string) error {
 }
 
 // cmdRead prints the contents of a note resolved by title.
+// If heading= is provided, only the specified section is returned.
 func cmdRead(vaultDir string, params map[string]string) error {
 	title := params["file"]
 	if title == "" {
@@ -73,7 +136,34 @@ func cmdRead(vaultDir string, params map[string]string) error {
 		return err
 	}
 
-	fmt.Print(string(data))
+	heading := params["heading"]
+	if heading == "" {
+		// No heading filter: return entire note (backward compatible)
+		fmt.Print(string(data))
+		return nil
+	}
+
+	// Heading-scoped read: find the section and return heading + content
+	lines := strings.Split(string(data), "\n")
+	bounds, found := findSection(lines, heading)
+	if !found {
+		return fmt.Errorf("heading %q not found in %q", heading, title)
+	}
+
+	// Extract from heading line through end of section.
+	// Join with newlines to reconstruct the text. The last element in the
+	// slice from Split is typically an empty string when the file ended with
+	// a newline, so joining and adding a single trailing newline produces
+	// the correct output without doubling.
+	section := lines[bounds.HeadingLine:bounds.ContentEnd]
+	output := strings.Join(section, "\n")
+
+	// Ensure exactly one trailing newline (matches file convention).
+	if !strings.HasSuffix(output, "\n") {
+		output += "\n"
+	}
+
+	fmt.Print(output)
 	return nil
 }
 
@@ -94,6 +184,8 @@ func parseSearchQuery(query string) (text string, filters map[string]string) {
 
 // cmdSearch finds notes whose title or content matches the query (case-insensitive).
 // Supports property filters: query="term [key:value] [key2:value2]"
+// When context="N" is provided, output switches to file:line:content format
+// showing N lines before and after each match (similar to grep -C).
 func cmdSearch(vaultDir string, params map[string]string, format string) error {
 	query := params["query"]
 	if query == "" {
@@ -103,6 +195,17 @@ func cmdSearch(vaultDir string, params map[string]string, format string) error {
 	textQuery, filters := parseSearchQuery(query)
 	queryLower := strings.ToLower(textQuery)
 	pathFilter := params["path"] // optional: limit to a subdirectory
+
+	// Parse optional context parameter
+	contextStr := params["context"]
+	contextN := -1 // -1 means no context requested
+	if contextStr != "" {
+		n, err := parseInt0(contextStr)
+		if err != nil {
+			return fmt.Errorf("invalid context value: %s", contextStr)
+		}
+		contextN = n
+	}
 
 	searchRoot := vaultDir
 	if pathFilter != "" {
@@ -120,6 +223,7 @@ func cmdSearch(vaultDir string, params map[string]string, format string) error {
 	}
 
 	var results []searchResult
+	var contextResults []contextMatch
 
 	err := filepath.WalkDir(searchRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -165,15 +269,68 @@ func cmdSearch(vaultDir string, params map[string]string, format string) error {
 			return nil
 		}
 
-		// Check title first (cheap)
-		if strings.Contains(strings.ToLower(title), queryLower) {
+		titleMatches := strings.Contains(strings.ToLower(title), queryLower)
+		contentMatches := strings.Contains(strings.ToLower(content), queryLower)
+
+		if !titleMatches && !contentMatches {
+			return nil
+		}
+
+		// No context mode: use original behavior
+		if contextN < 0 {
 			results = append(results, searchResult{title, relPath})
 			return nil
 		}
 
-		// Check content
-		if strings.Contains(strings.ToLower(content), queryLower) {
-			results = append(results, searchResult{title, relPath})
+		// Context mode: find line-level matches in content
+		lines := strings.Split(content, "\n")
+		matchLineIdxs := findMatchLines(lines, textQuery)
+
+		if len(matchLineIdxs) > 0 {
+			// Expand and merge ranges
+			ranges := expandAndMerge(matchLineIdxs, contextN, len(lines))
+			for _, r := range ranges {
+				// For each merged range, output each line
+				for i := r.start; i <= r.end; i++ {
+					isMatch := false
+					for _, m := range matchLineIdxs {
+						if m == i {
+							isMatch = true
+							break
+						}
+					}
+					if isMatch {
+						// Collect the full context window around this match
+						ctxStart := i - contextN
+						if ctxStart < 0 {
+							ctxStart = 0
+						}
+						ctxEnd := i + contextN
+						if ctxEnd >= len(lines) {
+							ctxEnd = len(lines) - 1
+						}
+						var ctxLines []string
+						for j := ctxStart; j <= ctxEnd; j++ {
+							ctxLines = append(ctxLines, lines[j])
+						}
+						contextResults = append(contextResults, contextMatch{
+							File:    relPath,
+							Line:    i + 1, // 1-based
+							Match:   lines[i],
+							Context: ctxLines,
+						})
+					}
+				}
+			}
+		} else if titleMatches {
+			// Title matched but no content match -- still show the file
+			// Use a synthetic context match with file info only
+			contextResults = append(contextResults, contextMatch{
+				File:    relPath,
+				Line:    0,
+				Match:   title,
+				Context: nil,
+			})
 		}
 
 		return nil
@@ -183,12 +340,37 @@ func cmdSearch(vaultDir string, params map[string]string, format string) error {
 		return err
 	}
 
+	// Context mode output
+	if contextN >= 0 {
+		if len(contextResults) == 0 {
+			return nil
+		}
+		formatSearchWithContext(contextResults, format)
+		return nil
+	}
+
+	// Non-context mode output
 	if len(results) == 0 {
 		return nil // silent on no results, matching grep convention
 	}
 
 	formatSearchResults(results, format)
 	return nil
+}
+
+// parseInt0 parses a string as a non-negative integer (0 is allowed).
+func parseInt0(s string) (int, error) {
+	if s == "" {
+		return 0, fmt.Errorf("empty string")
+	}
+	n := 0
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return 0, fmt.Errorf("not a number: %s", s)
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n, nil
 }
 
 // cmdCreate creates a new note at the given path within the vault.

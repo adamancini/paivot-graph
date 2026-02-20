@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// Ensure json import is used (referenced in TestSearchContextWithJSONFormat).
+var _ = json.Unmarshal
 
 func TestParseArgs(t *testing.T) {
 	tests := []struct {
@@ -1770,6 +1774,716 @@ func TestPatchThenBacklinks(t *testing.T) {
 	}
 	if len(results) != 0 {
 		t.Errorf("expected no backlinks to Target after patch, got %v", results)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// read heading extraction tests (VLT-4lr)
+// ---------------------------------------------------------------------------
+
+// Unit test 1: findSection helper finds correct section boundaries
+func TestFindSection(t *testing.T) {
+	lines := strings.Split("## Section A\ncontent a\nmore a\n## Section B\ncontent b\n", "\n")
+
+	bounds, found := findSection(lines, "## Section A")
+	if !found {
+		t.Fatal("section not found")
+	}
+	if bounds.HeadingLine != 0 {
+		t.Errorf("HeadingLine = %d, want 0", bounds.HeadingLine)
+	}
+	if bounds.ContentStart != 1 {
+		t.Errorf("ContentStart = %d, want 1", bounds.ContentStart)
+	}
+	if bounds.ContentEnd != 3 {
+		t.Errorf("ContentEnd = %d, want 3", bounds.ContentEnd)
+	}
+}
+
+// Unit test 2: section extends to EOF when it is the last section
+func TestFindSectionAtEOF(t *testing.T) {
+	lines := strings.Split("## First\nfirst content\n## Last\nlast content\nmore last\n", "\n")
+
+	bounds, found := findSection(lines, "## Last")
+	if !found {
+		t.Fatal("section not found")
+	}
+	if bounds.ContentEnd != len(lines) {
+		t.Errorf("ContentEnd = %d, want %d (EOF)", bounds.ContentEnd, len(lines))
+	}
+}
+
+// Unit test 3: heading match is case-insensitive
+func TestFindSectionCaseInsensitive(t *testing.T) {
+	lines := strings.Split("## My Section\ncontent here\n", "\n")
+
+	bounds, found := findSection(lines, "## my section")
+	if !found {
+		t.Fatal("case-insensitive match failed")
+	}
+	if bounds.HeadingLine != 0 {
+		t.Errorf("HeadingLine = %d, want 0", bounds.HeadingLine)
+	}
+}
+
+// Unit test 4: returns false for nonexistent heading
+func TestFindSectionNotFound(t *testing.T) {
+	lines := strings.Split("## Existing\ncontent\n", "\n")
+
+	_, found := findSection(lines, "## Nonexistent")
+	if found {
+		t.Error("expected section not to be found")
+	}
+}
+
+// Unit test 5: read with heading= returns heading + section content
+func TestReadWithHeadingBasic(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Section A\ncontent a\nmore a\n## Section B\ncontent b\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Note",
+		"heading": "## Section A",
+	}
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdRead(vaultDir, params)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("cmdRead with heading: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	want := "## Section A\ncontent a\nmore a\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// Unit test 6: subsections are included in the extracted section
+func TestReadWithHeadingIncludesSubheadings(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Section A\ncontent a\n### Sub\nsub content\n## Section B\ncontent b\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Note",
+		"heading": "## Section A",
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdRead(vaultDir, params)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("cmdRead with heading: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	// Must include subsection
+	if !strings.Contains(got, "### Sub") {
+		t.Error("subsection heading not included")
+	}
+	if !strings.Contains(got, "sub content") {
+		t.Error("subsection content not included")
+	}
+	// Must NOT include Section B
+	if strings.Contains(got, "## Section B") {
+		t.Error("next section incorrectly included")
+	}
+}
+
+// Unit test 7: read without heading= returns full note (backward compat)
+func TestReadWithoutHeading(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "---\ntype: note\n---\n\n# Title\n\nBody content.\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{
+		"file": "Note",
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdRead(vaultDir, params)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("cmdRead without heading: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	if got != content {
+		t.Errorf("full note not returned.\ngot:  %q\nwant: %q", got, content)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Integration tests for read heading (real files, no mocks)
+// ---------------------------------------------------------------------------
+
+// Integration test 8: create note with multiple sections, read specific heading
+func TestReadHeadingIntegration(t *testing.T) {
+	vaultDir := t.TempDir()
+	os.MkdirAll(filepath.Join(vaultDir, "methodology"), 0755)
+
+	content := "# Design Doc\n\nIntro paragraph.\n\n## Architecture\n\nArch description.\nMore details.\n\n## Implementation\n\nImpl details.\n\n## Testing\n\nTest plan.\n"
+	notePath := filepath.Join(vaultDir, "methodology", "Design Doc.md")
+	os.WriteFile(notePath, []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Design Doc",
+		"heading": "## Implementation",
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdRead(vaultDir, params)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("integration read heading: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	// Must contain the heading and its content
+	if !strings.Contains(got, "## Implementation") {
+		t.Error("heading not in output")
+	}
+	if !strings.Contains(got, "Impl details.") {
+		t.Error("section content not in output")
+	}
+	// Must NOT contain other sections
+	if strings.Contains(got, "## Architecture") {
+		t.Error("Architecture section leaked into output")
+	}
+	if strings.Contains(got, "## Testing") {
+		t.Error("Testing section leaked into output")
+	}
+	if strings.Contains(got, "Intro paragraph") {
+		t.Error("intro paragraph leaked into output")
+	}
+}
+
+// Integration test 9: note with frontmatter, heading section does not include frontmatter
+func TestReadHeadingWithFrontmatter(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "---\ntype: decision\nstatus: active\n---\n\n# Title\n\nIntro.\n\n## Details\n\nDetail content.\n\n## Conclusion\n\nConclusion content.\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Note",
+		"heading": "## Details",
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdRead(vaultDir, params)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("read heading with frontmatter: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	// Must contain section content
+	if !strings.Contains(got, "## Details") {
+		t.Error("heading not in output")
+	}
+	if !strings.Contains(got, "Detail content.") {
+		t.Error("section content not in output")
+	}
+	// Must NOT contain frontmatter or other sections
+	if strings.Contains(got, "---") {
+		t.Error("frontmatter delimiter leaked into output")
+	}
+	if strings.Contains(got, "type: decision") {
+		t.Error("frontmatter content leaked into output")
+	}
+	if strings.Contains(got, "## Conclusion") {
+		t.Error("Conclusion section leaked into output")
+	}
+}
+
+// Integration test 10: read the last section (extends to EOF)
+func TestReadHeadingLastSection(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## First\n\nFirst content.\n\n## Second\n\nSecond content.\n\n## Last\n\nLast content.\nMore last.\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Note",
+		"heading": "## Last",
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cmdRead(vaultDir, params)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("read last section: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	want := "## Last\n\nLast content.\nMore last.\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// Integration test 11: nonexistent heading returns error
+func TestReadHeadingNotFoundIntegration(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "## Existing\n\nSome content.\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{
+		"file":    "Note",
+		"heading": "## Nonexistent",
+	}
+
+	err := cmdRead(vaultDir, params)
+	if err == nil {
+		t.Fatal("expected error for nonexistent heading")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "## Nonexistent") {
+		t.Errorf("error should mention the heading, got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// search context tests (VLT-hha)
+// ---------------------------------------------------------------------------
+
+// Unit test 1: search with context=1 shows 1 line before and after
+func TestSearchContextBasic(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\nline two\nthe architecture is key\nline four\nline five\n"
+	os.WriteFile(filepath.Join(vaultDir, "Note.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search with context: %v", err)
+		}
+	})
+
+	// Should contain file:line:content format
+	if !strings.Contains(out, "Note.md:") {
+		t.Errorf("output should contain file:line format, got: %q", out)
+	}
+	// Should contain the match line
+	if !strings.Contains(out, "the architecture is key") {
+		t.Errorf("output should contain match line, got: %q", out)
+	}
+	// Should contain context lines
+	if !strings.Contains(out, "line two") {
+		t.Errorf("output should contain line before match, got: %q", out)
+	}
+	if !strings.Contains(out, "line four") {
+		t.Errorf("output should contain line after match, got: %q", out)
+	}
+	// Should NOT contain lines outside context
+	if strings.Contains(out, "line one") {
+		t.Errorf("output should not contain lines outside context range, got: %q", out)
+	}
+	if strings.Contains(out, "line five") {
+		t.Errorf("output should not contain lines outside context range, got: %q", out)
+	}
+}
+
+// Unit test 2: match on line 1, no lines before (no error/panic)
+func TestSearchContextAtFileStart(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "architecture first line\nline two\nline three\n"
+	os.WriteFile(filepath.Join(vaultDir, "Start.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "2"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search context at start: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "architecture first line") {
+		t.Errorf("match line missing, got: %q", out)
+	}
+	// Context after should be present (up to 2 lines)
+	if !strings.Contains(out, "line two") {
+		t.Errorf("context line after match missing, got: %q", out)
+	}
+	if !strings.Contains(out, "line three") {
+		t.Errorf("second context line after match missing, got: %q", out)
+	}
+}
+
+// Unit test 3: match on last line, no lines after
+func TestSearchContextAtFileEnd(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\nline two\narchitecture at the end"
+	os.WriteFile(filepath.Join(vaultDir, "End.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "2"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search context at end: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "architecture at the end") {
+		t.Errorf("match line missing, got: %q", out)
+	}
+	if !strings.Contains(out, "line one") {
+		t.Errorf("context line before match missing, got: %q", out)
+	}
+	if !strings.Contains(out, "line two") {
+		t.Errorf("context line before match missing, got: %q", out)
+	}
+}
+
+// Unit test 4: multiple matches with overlapping context are merged
+func TestSearchContextMultipleMatches(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\narchitecture here\nmiddle\narchitecture again\nline five\n"
+	os.WriteFile(filepath.Join(vaultDir, "Multi.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search context multiple: %v", err)
+		}
+	})
+
+	// All lines from the merged range should appear
+	if !strings.Contains(out, "line one") {
+		t.Errorf("merged context should contain 'line one', got: %q", out)
+	}
+	if !strings.Contains(out, "architecture here") {
+		t.Errorf("first match missing, got: %q", out)
+	}
+	if !strings.Contains(out, "middle") {
+		t.Errorf("middle context line missing, got: %q", out)
+	}
+	if !strings.Contains(out, "architecture again") {
+		t.Errorf("second match missing, got: %q", out)
+	}
+	if !strings.Contains(out, "line five") {
+		t.Errorf("trailing context line missing, got: %q", out)
+	}
+
+	// Verify no duplicate lines
+	count := strings.Count(out, "middle")
+	if count != 1 {
+		t.Errorf("'middle' should appear exactly once in merged output, appeared %d times", count)
+	}
+}
+
+// Unit test 5: context=0 shows only the match line with file:line:content format
+func TestSearchContextZero(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\narchitecture here\nline three\n"
+	os.WriteFile(filepath.Join(vaultDir, "Zero.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "0"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search context=0: %v", err)
+		}
+	})
+
+	// Should contain match line in file:line:content format
+	if !strings.Contains(out, "Zero.md:2:") {
+		t.Errorf("expected file:line format for context=0, got: %q", out)
+	}
+	if !strings.Contains(out, "architecture here") {
+		t.Errorf("match line missing, got: %q", out)
+	}
+	// Should NOT contain surrounding lines
+	if strings.Contains(out, "line one") {
+		t.Errorf("context=0 should not show surrounding lines, got: %q", out)
+	}
+	if strings.Contains(out, "line three") {
+		t.Errorf("context=0 should not show surrounding lines, got: %q", out)
+	}
+}
+
+// Unit test 6: existing query= behavior unchanged when no context used
+func TestSearchQueryUnchangedWithoutContext(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(vaultDir, "TestNote.md"),
+		[]byte("# Test\nSome architecture content."), 0644)
+
+	params := map[string]string{"query": "architecture"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search without context: %v", err)
+		}
+	})
+
+	// Should use old title (path) format
+	if !strings.Contains(out, "TestNote") {
+		t.Errorf("expected title in output, got: %q", out)
+	}
+	// Old format is "Title (path)" -- should NOT have file:line:content colons
+	if strings.Contains(out, "TestNote.md:2:") {
+		t.Errorf("without context, should use title+path format, not file:line:content, got: %q", out)
+	}
+}
+
+// Integration test 7: create notes in t.TempDir(), search with context, verify output
+func TestSearchContextIntegration(t *testing.T) {
+	vaultDir := t.TempDir()
+	os.MkdirAll(filepath.Join(vaultDir, "decisions"), 0755)
+
+	content := "---\ntype: decision\nstatus: active\n---\n\n# Architecture Decision Record\n\n## Context\n\nThe previous approach used monolithic design.\nAfter reviewing the options,\nthe architecture decision was made\nto use a layered pattern\nwith clear boundaries.\n\n## Decision\n\nWe chose microservices.\n"
+	os.WriteFile(filepath.Join(vaultDir, "decisions", "ADR-001.md"), []byte(content), 0644)
+
+	os.WriteFile(filepath.Join(vaultDir, "decisions", "Unrelated.md"),
+		[]byte("# Unrelated\nNothing relevant here.\n"), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "2"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("integration search context: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "architecture") {
+		t.Errorf("match line missing in output: %q", out)
+	}
+	if !strings.Contains(out, "decisions/ADR-001.md:") {
+		t.Errorf("output should use relpath:line format, got: %q", out)
+	}
+	if strings.Contains(out, "Unrelated.md") {
+		t.Errorf("unrelated file should not appear in context output, got: %q", out)
+	}
+}
+
+// Integration test 8: verify --json output includes context array structure
+func TestSearchContextWithJSONFormat(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\nline two\narchitecture here\nline four\nline five\n"
+	os.WriteFile(filepath.Join(vaultDir, "JSON.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, "json"); err != nil {
+			t.Fatalf("search context json: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, `"file"`) {
+		t.Errorf("JSON output missing 'file' field, got: %q", out)
+	}
+	if !strings.Contains(out, `"line"`) {
+		t.Errorf("JSON output missing 'line' field, got: %q", out)
+	}
+	if !strings.Contains(out, `"match"`) {
+		t.Errorf("JSON output missing 'match' field, got: %q", out)
+	}
+	if !strings.Contains(out, `"context"`) {
+		t.Errorf("JSON output missing 'context' field, got: %q", out)
+	}
+
+	type contextResult struct {
+		File    string   `json:"file"`
+		Line    int      `json:"line"`
+		Match   string   `json:"match"`
+		Context []string `json:"context"`
+	}
+	var results []contextResult
+	if err := json.Unmarshal([]byte(out), &results); err != nil {
+		t.Fatalf("failed to parse JSON output: %v\nOutput: %q", err, out)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected at least one JSON result")
+	}
+	r := results[0]
+	if r.File != "JSON.md" {
+		t.Errorf("file = %q, want JSON.md", r.File)
+	}
+	if r.Line != 3 {
+		t.Errorf("line = %d, want 3", r.Line)
+	}
+	if r.Match != "architecture here" {
+		t.Errorf("match = %q, want 'architecture here'", r.Match)
+	}
+	if len(r.Context) != 3 {
+		t.Errorf("context length = %d, want 3, context: %v", len(r.Context), r.Context)
+	}
+}
+
+// Integration test 9: verify --csv output has file,line,content columns
+func TestSearchContextWithCSVFormat(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\narchitecture here\nline three\n"
+	os.WriteFile(filepath.Join(vaultDir, "CSV.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, "csv"); err != nil {
+			t.Fatalf("search context csv: %v", err)
+		}
+	})
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected at least 2 CSV lines (header + data), got %d: %q", len(lines), out)
+	}
+
+	header := lines[0]
+	if header != "file,line,content" {
+		t.Errorf("CSV header = %q, want 'file,line,content'", header)
+	}
+
+	foundMatch := false
+	for _, line := range lines[1:] {
+		if strings.Contains(line, "architecture here") {
+			foundMatch = true
+		}
+	}
+	if !foundMatch {
+		t.Errorf("CSV output missing match line, got: %q", out)
+	}
+}
+
+// Integration test 10: context works alongside [key:value] property filters
+func TestSearchContextWithPropertyFilter(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(vaultDir, "Active.md"),
+		[]byte("---\nstatus: active\n---\n\nline one\nthe architecture here\nline three\n"), 0644)
+
+	os.WriteFile(filepath.Join(vaultDir, "Archived.md"),
+		[]byte("---\nstatus: archived\n---\n\nthe architecture is also here\n"), 0644)
+
+	params := map[string]string{"query": "architecture [status:active]", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search context with filter: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "Active.md:") {
+		t.Errorf("expected Active.md in output, got: %q", out)
+	}
+	if strings.Contains(out, "Archived.md") {
+		t.Errorf("Archived.md should be filtered out, got: %q", out)
+	}
+	if !strings.Contains(out, "the architecture here") {
+		t.Errorf("match line missing, got: %q", out)
+	}
+}
+
+// Unit test 11: context with title-only match outputs title info
+func TestSearchContextTitleMatch(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\nline two\nline three\n"
+	os.WriteFile(filepath.Join(vaultDir, "Architecture Overview.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, ""); err != nil {
+			t.Fatalf("search context title match: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "Architecture Overview.md") {
+		t.Errorf("title-matched file should appear, got: %q", out)
+	}
+}
+
+// Integration test 12: YAML format with context
+func TestSearchContextWithYAMLFormat(t *testing.T) {
+	vaultDir := t.TempDir()
+
+	content := "line one\narchitecture here\nline three\n"
+	os.WriteFile(filepath.Join(vaultDir, "YAML.md"), []byte(content), 0644)
+
+	params := map[string]string{"query": "architecture", "context": "1"}
+	out := captureStdout(func() {
+		if err := cmdSearch(vaultDir, params, "yaml"); err != nil {
+			t.Fatalf("search context yaml: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "file:") {
+		t.Errorf("YAML output missing 'file:' field, got: %q", out)
+	}
+	if !strings.Contains(out, "line:") {
+		t.Errorf("YAML output missing 'line:' field, got: %q", out)
+	}
+	if !strings.Contains(out, "match:") {
+		t.Errorf("YAML output missing 'match:' field, got: %q", out)
+	}
+	if !strings.Contains(out, "architecture here") {
+		t.Errorf("YAML output missing match text, got: %q", out)
 	}
 }
 

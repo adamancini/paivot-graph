@@ -157,7 +157,7 @@ Usage:
   vlt vault="<name>" <command> [args...]
 
 File commands:
-  read           file="<title>"                              Read a note by title (or alias)
+  read           file="<title>" [heading="<heading>"]         Read a note (or a specific section)
   create         name="<title>" path="<path>" [content=...] [silent]  Create a note
   append         file="<title>" [content="<text>"]           Append to end of note
   prepend        file="<title>" [content="<text>"]           Prepend after frontmatter
@@ -189,7 +189,8 @@ Task commands:
   tasks          [file="<title>"] [path="<dir>"] [done] [pending]  List tasks (checkboxes)
 
 Search:
-  search         query="<term> [key:value]"                  Search by title, content, properties
+  search         query="<term> [key:value]" [context="N"]    Search by title, content, properties
+                                                              context=N shows N lines before/after each match
 
 Other:
   vaults                                                     List discovered vaults
@@ -221,6 +222,7 @@ Wikilink support:
 
 Examples:
   vlt vault="Claude" read file="Session Operating Mode"
+  vlt vault="Claude" read file="Design Doc" heading="## Architecture"
   vlt vault="Claude" search query="architecture"
   vlt vault="Claude" search query="[status:active] [type:decision]"
   vlt vault="Claude" create name="My Note" path="_inbox/My Note.md" content="# Hello" silent
@@ -253,6 +255,8 @@ Examples:
   vlt vault="Claude" daily date="2025-01-15"
   vlt vault="Claude" orphans --json
   vlt vault="Claude" search query="architecture" --csv
+  vlt vault="Claude" search query="architecture" context="2"
+  vlt vault="Claude" search query="architecture [status:active]" context="1" --json
   vlt vaults
 `)
 }

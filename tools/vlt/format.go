@@ -218,6 +218,121 @@ func formatSearchResults(results []searchResult, format string) {
 	}
 }
 
+// formatSearchWithContext outputs context-aware search results in the requested format.
+// For plain text: file:line:content (one line per context line in each range).
+// For JSON: array of {file, line, match, context} objects.
+// For CSV: file,line,content columns (one row per context line).
+// For YAML: structured entries with file, line, match, context fields.
+func formatSearchWithContext(matches []contextMatch, format string) {
+	switch format {
+	case "json":
+		type jsonContextMatch struct {
+			File    string   `json:"file"`
+			Line    int      `json:"line"`
+			Match   string   `json:"match"`
+			Context []string `json:"context"`
+		}
+		entries := make([]jsonContextMatch, len(matches))
+		for i, m := range matches {
+			ctx := m.Context
+			if ctx == nil {
+				ctx = []string{}
+			}
+			entries[i] = jsonContextMatch{
+				File:    m.File,
+				Line:    m.Line,
+				Match:   m.Match,
+				Context: ctx,
+			}
+		}
+		data, _ := json.Marshal(entries)
+		fmt.Println(string(data))
+	case "csv":
+		w := csv.NewWriter(os.Stdout)
+		w.Write([]string{"file", "line", "content"})
+		for _, m := range matches {
+			if m.Context == nil {
+				// Title-only match
+				w.Write([]string{m.File, fmt.Sprintf("%d", m.Line), m.Match})
+				continue
+			}
+			// Output each context line with the correct line number
+			startLine := m.Line - 1 // 0-based index of match
+			ctxBefore := 0
+			for j, c := range m.Context {
+				if c == m.Match && j <= startLine {
+					ctxBefore = j
+					break
+				}
+			}
+			baseLineNum := m.Line - ctxBefore
+			for j, c := range m.Context {
+				w.Write([]string{m.File, fmt.Sprintf("%d", baseLineNum+j), c})
+			}
+		}
+		w.Flush()
+	case "yaml":
+		for i, m := range matches {
+			if i > 0 {
+				fmt.Println("---")
+			}
+			fmt.Printf("file: %s\n", m.File)
+			fmt.Printf("line: %d\n", m.Line)
+			fmt.Printf("match: %s\n", yamlEscapeValue(m.Match))
+			if m.Context != nil {
+				fmt.Println("context:")
+				for _, c := range m.Context {
+					fmt.Printf("  - %s\n", yamlEscapeValue(c))
+				}
+			}
+		}
+	default:
+		// Plain text: file:line:content format
+		// To avoid duplicate lines from overlapping match contexts,
+		// we deduplicate by tracking file+line combinations we have already emitted.
+		type fileLineKey struct {
+			file string
+			line int
+		}
+		emitted := make(map[fileLineKey]bool)
+		prevFile := ""
+
+		for _, m := range matches {
+			if m.Context == nil {
+				// Title-only match
+				fmt.Printf("%s (title match)\n", m.File)
+				continue
+			}
+
+			// Separate blocks from different files with a blank line
+			if prevFile != "" && m.File != prevFile {
+				fmt.Println("--")
+			}
+			prevFile = m.File
+
+			// Calculate the starting line number for the context window
+			ctxBefore := 0
+			for j, c := range m.Context {
+				if c == m.Match {
+					ctxBefore = j
+					break
+				}
+			}
+			baseLineNum := m.Line - ctxBefore
+
+			for j, c := range m.Context {
+				lineNum := baseLineNum + j
+				key := fileLineKey{m.File, lineNum}
+				if emitted[key] {
+					continue
+				}
+				emitted[key] = true
+				fmt.Printf("%s:%d:%s\n", m.File, lineNum, c)
+			}
+		}
+	}
+}
+
 // formatLinks outputs link information in the requested format.
 func formatLinks(links []linkInfo, format string) {
 	switch format {
