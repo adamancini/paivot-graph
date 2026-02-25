@@ -1,13 +1,14 @@
 ---
-description: Show Obsidian vault health -- note counts by folder, recent notes, and overall state
+description: Show Obsidian vault health -- note counts by folder, recent notes, project vault status, and pending proposals
 allowed-tools: ["Bash", "Read", "Glob", "Grep"]
 ---
 
 # Vault Status
 
-Show the current state and health of the Obsidian knowledge vault.
+Show the current state and health of both the global Obsidian vault and the project-local vault.
 
-**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+**Global vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+**Project vault path:** `.vault/knowledge/` (relative to project root)
 
 ## Steps
 
@@ -21,7 +22,7 @@ Show the current state and health of the Obsidian knowledge vault.
    ```
    If neither works, report and exit.
 
-2. **Gather vault statistics** by counting files per folder:
+2. **Gather global vault statistics** by counting files per folder:
 
    Preferred (via Bash -- fast counts):
    ```bash
@@ -62,15 +63,52 @@ Show the current state and health of the Obsidian knowledge vault.
    vlt vault="Claude" unresolved
    ```
 
-4. **Present the report**:
+4. **Check project vault status**:
+
+   Check if `.vault/knowledge/` exists in the current project:
+   ```bash
+   test -d .vault/knowledge && echo "exists" || echo "not initialized"
+   ```
+
+   If it exists, count notes per subfolder:
+   ```bash
+   find .vault/knowledge/decisions -name '*.md' -type f 2>/dev/null | wc -l
+   find .vault/knowledge/patterns -name '*.md' -type f 2>/dev/null | wc -l
+   find .vault/knowledge/debug -name '*.md' -type f 2>/dev/null | wc -l
+   find .vault/knowledge/conventions -name '*.md' -type f 2>/dev/null | wc -l
+   ```
+
+   List recent project notes:
+   ```bash
+   find .vault/knowledge -name '*.md' -type f -not -name 'README.md' -not -name 'changelog.md' 2>/dev/null | head -10
+   ```
+
+5. **Check for pending proposals**:
+
+   Search the global vault inbox for pending proposals:
+   ```bash
+   vlt vault="Claude" search query="type: proposal"
+   ```
+
+   Or fallback with Grep:
+   ```
+   Grep: pattern="type: proposal" path="/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox" glob="*.md"
+   ```
+
+   For each found, check if `status: pending`:
+   ```
+   Grep: pattern="status: pending" in each proposal file
+   ```
+
+6. **Present the report**:
 
    ```
    ## Vault Status
 
-   ### Note Inventory
+   ### Global Vault (system scope)
    | Folder        | Count | Purpose                              |
    |---------------|-------|--------------------------------------|
-   | methodology/  | N     | Paivot methodology (atomic concepts) |
+   | methodology/  | N     | Paivot methodology (agent prompts)   |
    | conventions/  | N     | Working conventions                  |
    | decisions/    | N     | Architectural decisions              |
    | patterns/     | N     | Reusable solutions                   |
@@ -81,6 +119,28 @@ Show the current state and health of the Obsidian knowledge vault.
    | _inbox/       | N     | Unsorted (needs triage)              |
    | **Total**     | **N** |                                      |
 
+   ### Project Vault (.vault/knowledge/)
+   Status: <exists | not initialized>
+
+   | Subfolder     | Count |
+   |---------------|-------|
+   | decisions/    | N     |
+   | patterns/     | N     |
+   | debug/        | N     |
+   | conventions/  | N     |
+   | **Total**     | **N** |
+
+   (If not initialized: "No project vault. Run /vault-capture to create one.")
+
+   ### Pending Proposals
+   N proposals awaiting review:
+   - Proposal for <Target Note A> (from project <X>, created <date>)
+   - Proposal for <Target Note B> (from project <Y>, created <date>)
+
+   Run /vault-triage to review and accept/reject.
+
+   (If none: "No pending proposals.")
+
    ### Health
    - Inbox items: N (triage needed if > 0)
    - Active projects: <list>
@@ -90,9 +150,11 @@ Show the current state and health of the Obsidian knowledge vault.
    - <any actionable suggestions based on the data>
    ```
 
-5. **Provide actionable recommendations** based on what was found:
+7. **Provide actionable recommendations** based on what was found:
    - If inbox has items: "N notes in _inbox/ need triage -- move them to proper folders"
+   - If pending proposals exist: "N proposals pending -- run /vault-triage to review"
    - If a folder is empty: "No <type> notes yet -- consider capturing <type> knowledge"
+   - If project vault not initialized: "Consider initializing .vault/knowledge/ for project-local knowledge"
    - If vault is healthy: "Vault is well-organized. Keep capturing knowledge as you work."
 
 ## If vault directory is missing

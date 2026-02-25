@@ -1,5 +1,5 @@
 ---
-description: Refine vault-backed content based on session experience. Review what happened, identify improvements to agent prompts, skill content, or operating mode, and update the relevant vault notes.
+description: Refine vault-backed content based on session experience. Review what happened, identify improvements to agent prompts, skill content, or operating mode, and update the relevant vault notes. System-scoped notes get proposals; project-scoped notes get direct edits.
 allowed-tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep"]
 ---
 
@@ -8,6 +8,10 @@ allowed-tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep"]
 Review the current session's work and refine the vault notes that power paivot-graph. This closes the feedback loop: work produces experience, experience refines the vault, refined vault improves future work.
 
 **Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+
+**Scope rules:**
+- `scope: system` (or no scope property) -- propose changes only; user must approve via `/vault-triage`
+- `scope: project` -- apply changes directly to `.vault/knowledge/` in the project repo
 
 ## Step 1: Assess What Happened
 
@@ -65,24 +69,100 @@ Look for:
 - Checklist items that were not useful (remove or rephrase)
 - Missing checklist items (add them)
 
-## Step 3: Apply Updates
+### Project-local knowledge (.vault/knowledge/)
 
-For each improvement identified, use Read to get the current content, then Edit to make targeted changes or Write to replace the full note.
+Check if the project has local knowledge:
+```bash
+find .vault/knowledge -name '*.md' -type f 2>/dev/null | sort
+```
 
-When updating agent prompts, be conservative:
+Look for project-specific conventions, patterns, or decisions that need updating.
+
+## Step 3: Determine Scope and Apply
+
+For each improvement identified, **read the target note's frontmatter first** and check the `scope:` property.
+
+### If `scope: system` (or no scope -- defaults to system):
+
+**DO NOT modify the note directly.** Instead, create a proposal:
+
+1. Read the full current content of the target note (this becomes the rollback snapshot).
+2. Create a proposal note in the vault `_inbox/`:
+
+```bash
+vlt vault="Claude" create name="Proposal -- <Target Note>" path="_inbox/Proposal -- <Target Note>.md" content="---
+type: proposal
+scope: system
+target: \"<full vault path of target note>\"
+project: <originating-project>
+status: pending
+created: <YYYY-MM-DD>
+---
+
+# Proposed change: <Target Note>
+
+## Motivation
+<what session experience revealed the need for this change>
+
+## Change
+### Before
+<relevant section of the current note>
+
+### After
+<proposed replacement>
+
+## Snapshot (for rollback)
+<full content of the target note at time of proposal>
+
+## Impact
+Affects all projects using <Target Note>." silent
+```
+
+3. Tell the user: "Created proposal for <note>. Run /vault-triage to review and apply."
+
+### If `scope: project`:
+
+Apply changes directly to `.vault/knowledge/` in the project:
+
+1. Create the directory structure if needed:
+```bash
+mkdir -p .vault/knowledge/decisions .vault/knowledge/patterns .vault/knowledge/debug .vault/knowledge/conventions
+```
+
+2. Use Edit to make targeted changes, or Write to create/replace the note.
+
+3. Append to `.vault/knowledge/changelog.md`:
+```
+- <YYYY-MM-DD>: Updated <note> -- <what changed and why>
+```
+
+When updating any note, be conservative:
 - Add clarifying instructions, do not remove existing ones without good reason
 - Add examples of what went wrong and how to avoid it
 - Preserve the overall structure
 
 ## Step 4: Report Changes
 
-Summarize what was changed:
-- Which vault notes were updated
-- What the specific improvements were
-- Why each change was made (what session experience motivated it)
+Separate the report into two sections:
+
+```
+## Vault Evolve Summary
+
+### Proposals Created (system scope -- requires /vault-triage)
+- Proposal for <Note A>: <what would change and why>
+- Proposal for <Note B>: <what would change and why>
+
+### Changes Applied (project scope -- applied directly)
+- Updated .vault/knowledge/<path>: <what changed>
+- Created .vault/knowledge/<path>: <why>
+
+### No Changes Needed
+- <Notes reviewed but found adequate>
+```
 
 ## Constraints
 
 - Only modify vault notes, never modify the plugin's static files (those are fallbacks)
 - Keep changes grounded in actual session experience, not hypothetical improvements
 - If unsure whether a change is warranted, describe it to the user and ask
+- NEVER directly modify a system-scoped note -- always create a proposal

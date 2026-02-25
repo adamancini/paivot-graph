@@ -55,4 +55,14 @@ Do this NOW -- after compaction, the details will be lost.
 EOF
 fi
 
+# Two-tier capture guidance
+cat <<'TIER'
+
+[VAULT] Where to save knowledge:
+  - Universal insights (applicable to ANY project) -> global vault _inbox/
+      vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="..." silent
+  - Project-specific insights (only relevant HERE) -> .vault/knowledge/ locally
+      Create files directly in .vault/knowledge/decisions/, patterns/, debug/, or conventions/
+TIER
+
 exit 0

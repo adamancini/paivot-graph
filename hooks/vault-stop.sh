@@ -42,11 +42,20 @@ Before ending this session, confirm you have considered each of these:
 - [ ] Did you capture any PATTERNS discovered?
 - [ ] Did you capture any DEBUG INSIGHTS?
 - [ ] Did you update the PROJECT INDEX NOTE?
+- [ ] Did you capture project-specific knowledge to .vault/knowledge/?
 
 If none apply (trivial session), that is fine -- but confirm it was considered.
 
 Use: vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="..." silent
 FALLBACK
 fi
+
+# Two-tier reminder
+cat <<'TIER'
+
+[VAULT] Remember: save to the right tier.
+  - Universal insights -> global vault (_inbox/)
+  - Project-specific insights -> .vault/knowledge/ (local)
+TIER
 
 exit 0

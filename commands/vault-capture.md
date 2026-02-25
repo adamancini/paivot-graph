@@ -1,13 +1,14 @@
 ---
-description: Trigger a deliberate knowledge capture pass -- review the current session and save decisions, patterns, and debug insights to the Obsidian vault
+description: Trigger a deliberate knowledge capture pass -- review the current session and save decisions, patterns, and debug insights to the appropriate vault tier (global or project-local)
 allowed-tools: ["Bash", "Read", "Write", "Edit", "Grep", "Glob"]
 ---
 
 # Vault Capture
 
-Perform a deliberate knowledge capture pass for the current session. This command reviews what has happened in the conversation and creates/updates vault notes.
+Perform a deliberate knowledge capture pass for the current session. This command reviews what has happened in the conversation and creates/updates vault notes, routing each piece of knowledge to the correct tier.
 
-**Vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+**Global vault path:** `/Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude`
+**Project vault path:** `.vault/knowledge/` (relative to project root)
 
 ## Steps
 
@@ -33,17 +34,16 @@ Perform a deliberate knowledge capture pass for the current session. This comman
    ```
    Fallback if vlt unavailable: use Grep/Read tools directly on vault path.
 
-5. **For each piece of capturable knowledge**, create a vault note:
+5. **For each piece of capturable knowledge**, decide which tier it belongs to:
 
-   - Use `_inbox/` as the initial path (triage later)
-   - Include proper frontmatter (type, project, status, created date)
-   - Add `[[wikilinks]]` to related notes
-   - Keep notes atomic -- one idea per note
+   ### Universal knowledge (applies to ANY project using this stack/methodology)
+   Examples: methodology refinements, cross-project patterns, tool insights, convention updates.
 
-   Preferred (via Bash):
+   Route to global vault `_inbox/` with `scope: system`:
    ```bash
    vlt vault="Claude" create name="<Note Title>" path="_inbox/<Note Title>.md" content="---
    type: <decision|pattern|debug>
+   scope: system
    project: <project>
    status: active
    created: <YYYY-MM-DD>
@@ -54,7 +54,36 @@ Perform a deliberate knowledge capture pass for the current session. This comman
    <content>" silent
    ```
 
-   Fallback: use Write tool to create the file directly at the vault path.
+   ### Project-specific knowledge (only relevant to THIS project)
+   Examples: project architecture decisions, project-specific patterns, local debug insights, project conventions.
+
+   Route to `.vault/knowledge/` with `scope: project`:
+
+   First, create the directory structure if needed:
+   ```bash
+   mkdir -p .vault/knowledge/decisions .vault/knowledge/patterns .vault/knowledge/debug .vault/knowledge/conventions
+   ```
+
+   Then create the note directly:
+   ```bash
+   cat > .vault/knowledge/<subfolder>/<Note Title>.md << 'EOF'
+   ---
+   type: <decision|pattern|debug|convention>
+   scope: project
+   project: <project>
+   status: active
+   created: <YYYY-MM-DD>
+   ---
+
+   # <Note Title>
+
+   <content>
+   EOF
+   ```
+
+   Subfolder mapping: decisions/ for decisions, patterns/ for patterns, debug/ for debug insights, conventions/ for conventions.
+
+   **If `.vault/` does not exist** (nd not initialized): fall back to the global vault with a `scope: project` tag so it can be moved later. Tell the user: "No .vault/ directory found. Saved to global vault with scope: project. Initialize nd to enable project-local storage."
 
 6. **Update the project index note** if it exists:
 
@@ -72,6 +101,21 @@ Perform a deliberate knowledge capture pass for the current session. This comman
    vlt vault="Claude" create name="<Project>" path="projects/<Project>.md" content="..." silent
    ```
 
+   Also create/update `.vault/knowledge/README.md` if project-local notes were created:
+   ```
+   # Project Knowledge
+
+   Local knowledge for <project>. See also the global vault for cross-project knowledge.
+
+   ## Contents
+   - decisions/: N notes
+   - patterns/: N notes
+   - debug/: N notes
+   - conventions/: N notes
+
+   Last updated: <YYYY-MM-DD>
+   ```
+
    Fallback: use Edit tool to append, or Write tool to create.
 
 7. **Triage inbox notes** to their proper folders (vlt updates wikilinks automatically):
@@ -87,18 +131,22 @@ Perform a deliberate knowledge capture pass for the current session. This comman
    Project: <name>
    Date: <today>
 
-   ### Captured
+   ### Captured to Global Vault
    - [decision] <Note Title> -> decisions/
    - [pattern] <Note Title> -> patterns/
-   - [debug] <Note Title> -> debug/
+
+   ### Captured to Project Vault (.vault/knowledge/)
+   - [decision] <Note Title> -> .vault/knowledge/decisions/
+   - [debug] <Note Title> -> .vault/knowledge/debug/
 
    ### Updated
    - projects/<Project>.md (session update)
+   - .vault/knowledge/README.md
 
    ### Skipped (already exists)
    - <Note that was already in vault>
 
-   Total: N new notes, M updated notes
+   Total: N new notes (G global, P project-local), M updated notes
    ```
 
 ## If vault directory is missing

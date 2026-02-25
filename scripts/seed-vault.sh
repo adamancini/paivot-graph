@@ -114,6 +114,7 @@ seed_agent() {
     cat <<AGENT_EOF | write_note "methodology/${vault_name}.md"
 ---
 type: methodology
+scope: system
 project: paivot
 stack: [claude-code]
 domain: developer-tools
@@ -122,6 +123,10 @@ created: $TODAY
 ---
 
 $body
+
+## Changelog
+
+- $TODAY: Seeded from paivot-graph plugin (initial version)
 AGENT_EOF
 }
 
@@ -148,6 +153,7 @@ if [ -f "$skill_src" ]; then
     cat <<SKILL_EOF | write_note "conventions/Vault Knowledge Skill.md"
 ---
 type: convention
+scope: system
 project: paivot-graph
 stack: [claude-code, obsidian]
 domain: developer-tools
@@ -156,6 +162,10 @@ created: $TODAY
 ---
 
 $skill_body
+
+## Changelog
+
+- $TODAY: Seeded from paivot-graph plugin (initial version)
 SKILL_EOF
 else
     echo "  WARN: $skill_src not found"
@@ -172,6 +182,7 @@ echo "Seeding behavioral notes..."
 cat <<SOM_EOF | write_note "conventions/Session Operating Mode.md"
 ---
 type: convention
+scope: system
 project: paivot-graph
 stack: [claude-code, obsidian]
 domain: developer-tools
@@ -208,11 +219,16 @@ This is not optional. Knowledge that is not captured is knowledge that will be r
 - [[Vault Knowledge Skill]] -- How to interact with the vault
 - [[Pre-Compact Checklist]] -- Companion checklist before compaction
 - [[Stop Capture Checklist]] -- Companion checklist before stopping
+
+## Changelog
+
+- $TODAY: Seeded from paivot-graph plugin (initial version)
 SOM_EOF
 
 cat <<PCL_EOF | write_note "conventions/Pre-Compact Checklist.md"
 ---
 type: convention
+scope: system
 project: paivot-graph
 stack: [claude-code, obsidian]
 domain: developer-tools
@@ -253,11 +269,16 @@ Include sections: Symptoms, Root cause, Fix.
   vlt vault="Claude" append file="<Project>" content="## Session update (<YYYY-MM-DD>)\n- <what was accomplished>"
 
 Do this NOW -- after compaction, the details will be lost.
+
+## Changelog
+
+- $TODAY: Seeded from paivot-graph plugin (initial version)
 PCL_EOF
 
 cat <<SCL_EOF | write_note "conventions/Stop Capture Checklist.md"
 ---
 type: convention
+scope: system
 project: paivot-graph
 stack: [claude-code, obsidian]
 domain: developer-tools
@@ -277,6 +298,10 @@ Before ending this session, confirm you have considered each of these:
 If none of the above apply (e.g., quick fix, trivial session), that is fine -- but confirm it was considered, not forgotten.
 
 Use vlt to create notes: vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="..." silent
+
+## Changelog
+
+- $TODAY: Seeded from paivot-graph plugin (initial version)
 SCL_EOF
 
 # ---------------------------------------------------------------------------

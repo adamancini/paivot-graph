@@ -1,7 +1,7 @@
 ---
 name: vault-knowledge
 description: This skill should be used when working on any project to understand how to effectively interact with the Obsidian knowledge vault. It teaches when to capture knowledge, what to capture, how to format vault notes, and how to search effectively. Use when you need to "save to vault", "update vault", "capture a decision", "record a pattern", "log a debug insight", or when starting/ending a significant work session.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Vault Knowledge (Vault-Backed)
@@ -17,6 +17,66 @@ Read the full skill content from the vault:
 The vault version is authoritative. Follow it completely.
 
 If the vault is unavailable, use these minimal instructions:
+
+## Three-Tier Knowledge Model
+
+Knowledge lives in three tiers with different governance rules:
+
+### Tier 1: System Vault (global Obsidian "Claude")
+
+Shared across ALL projects. Changes require user approval.
+
+| Folder        | Scope  | Contains                        |
+|---------------|--------|---------------------------------|
+| methodology/  | system | Agent prompts                   |
+| conventions/  | system | Operating mode, checklists, skill |
+| decisions/    | system | Cross-project decisions         |
+| patterns/     | system | Cross-project patterns          |
+| debug/        | system | Cross-project debug insights    |
+| concepts/     | system | Language/framework knowledge    |
+| projects/     | system | Project index notes             |
+| people/       | system | Team preferences                |
+| _inbox/       | system | Unsorted capture (triage later) |
+
+**Governance:** System notes are NEVER modified directly during a session. Changes go through a proposal workflow -- `/vault-evolve` creates proposals, `/vault-triage` reviews and applies them.
+
+### Tier 2: Project Vault (`.vault/knowledge/` in each repo)
+
+Scoped to a single project. Changes apply directly, no approval needed.
+
+```
+.vault/knowledge/
+  decisions/      # Project-specific architectural decisions
+  patterns/       # Project-specific reusable patterns
+  debug/          # Project-specific debug insights
+  conventions/    # Project-specific conventions (override or supplement system)
+  changelog.md    # Log of all local knowledge changes
+  README.md       # Summary of local knowledge
+```
+
+**Governance:** Apply changes directly. Low risk -- only affects this project.
+
+### Tier 3: Session Memory (`~/.claude/projects/*/memory/`)
+
+Ephemeral, per-session. Already exists in Claude Code. No changes needed.
+
+## Scope Convention
+
+Every vault note has a `scope:` frontmatter property:
+
+- `scope: system` -- lives in the global vault, requires approval to change
+- `scope: project` -- lives in `.vault/knowledge/`, can be changed directly
+- **No `scope:` property** -- defaults to `scope: system` (conservative, protects existing notes)
+
+## Proposal Workflow
+
+When `/vault-evolve` identifies an improvement to a system-scoped note:
+
+1. A **proposal note** is created in `_inbox/` with `type: proposal`, `status: pending`
+2. The proposal includes: motivation, before/after diff, full snapshot for rollback
+3. The user runs `/vault-triage` to review proposals
+4. Each proposal can be: accepted (applied + moved to decisions/), rejected (kept as record in decisions/), or modified
+5. Accepted proposals append to the target note's `## Changelog` section
 
 ## Fallback: Core Vault Interaction Patterns
 
@@ -68,15 +128,25 @@ Fallback (Grep tool):
 
 ### How to Create Notes
 
-Preferred (via Bash):
+**First decide the scope:**
 
-    vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="---\ntype: decision\nproject: <project>\nstatus: active\ncreated: <YYYY-MM-DD>\n---\n\n# <Title>\n\n<content>" silent
+- Is this knowledge universal (applies to any project)? -> Global vault `_inbox/`, `scope: system`
+- Is this knowledge project-specific (only relevant here)? -> `.vault/knowledge/`, `scope: project`
+
+**Global vault (system scope):**
+
+    vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="---\ntype: decision\nscope: system\nproject: <project>\nstatus: active\ncreated: <YYYY-MM-DD>\n---\n\n# <Title>\n\n<content>" silent
+
+**Project vault (project scope):**
+
+    mkdir -p .vault/knowledge/decisions
+    Write: .vault/knowledge/decisions/<Title>.md
 
 Fallback (Write tool):
 
     Write: /Users/ramirosalas/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox/<Title>.md
 
-Every note needs frontmatter: type, project, status, created.
+Every note needs frontmatter: type, scope, project, status, created.
 
 ### How to Append to Notes
 
@@ -104,7 +174,7 @@ Fallback (Bash mv -- wikilinks will NOT be updated):
 
 ### Frontmatter Requirements
 
-Every note MUST have: type, project, status, created. Optional: stack, domain, confidence.
+Every note MUST have: type, scope, project, status, created. Optional: stack, domain, confidence.
 
 ### The Rule
 

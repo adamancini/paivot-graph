@@ -68,6 +68,21 @@ if [ -z "$search_results" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 4b. Check for project-local knowledge (.vault/knowledge/)
+# ---------------------------------------------------------------------------
+project_knowledge=""
+project_vault_dir="$cwd/.vault/knowledge"
+if [ -d "$project_vault_dir" ]; then
+    # List all markdown files in the project vault
+    project_notes="$(find "$project_vault_dir" -name '*.md' -type f 2>/dev/null \
+        | sed "s|$cwd/||" \
+        | sort || echo "")"
+    if [ -n "$project_notes" ]; then
+        project_knowledge="$project_notes"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 5. Output structured context
 # ---------------------------------------------------------------------------
 cat <<CONTEXT
@@ -77,6 +92,25 @@ Relevant vault notes:
 $search_results
 
 CONTEXT
+
+# Output project-local knowledge if present
+if [ -n "$project_knowledge" ]; then
+    echo "Project-local knowledge (.vault/knowledge/):"
+    echo ""
+    echo "$project_knowledge"
+    echo ""
+
+    # Read and output conventions (these affect behavior)
+    if [ -d "$project_vault_dir/conventions" ]; then
+        for conv_file in "$project_vault_dir/conventions"/*.md; do
+            if [ -f "$conv_file" ]; then
+                echo "--- $(basename "$conv_file") ---"
+                cat "$conv_file"
+                echo ""
+            fi
+        done
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # 6. Read operating mode from vault (or use static fallback)
