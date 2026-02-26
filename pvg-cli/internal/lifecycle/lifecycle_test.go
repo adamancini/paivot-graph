@@ -100,6 +100,8 @@ func TestStaticOperatingMode_ContainsKeyContent(t *testing.T) {
 		"BEFORE STARTING",
 		"WHILE WORKING",
 		"BEFORE ENDING",
+		"D&F ORCHESTRATION",
+		"QUESTIONS_FOR_USER",
 		"vlt vault=",
 	}
 	for _, check := range checks {

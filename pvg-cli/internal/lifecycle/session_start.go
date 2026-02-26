@@ -303,6 +303,17 @@ WHILE WORKING: Capture knowledge as it emerges -- do not wait for the end.
 BEFORE ENDING: Update the project index note with what was accomplished.
   vlt vault="Claude" append file="<Project>" content="## Session update (<date>)\n- <what was done>"
 
+D&F ORCHESTRATION: When Discovery & Framing is triggered, you are the dispatcher.
+  Full D&F: BLT agents (BA, Designer, Architect) CANNOT ask the user questions directly.
+  - Spawn them sequentially: BA -> Designer -> Architect
+  - Check output for QUESTIONS_FOR_USER blocks
+  - Relay questions to the user via AskUserQuestion
+  - Resume/re-spawn agent with answers; repeat until document produced
+  - Pass prior documents as input to each subsequent agent
+  Light D&F: When user requests "light D&F" or sufficient context exists (brownfield,
+  vault knowledge), draft BUSINESS.md, DESIGN.md, ARCHITECTURE.md directly without BLT.
+  Present to user for review, then proceed to Sr PM for backlog creation.
+
 This is not optional. Knowledge that is not captured is knowledge that will be rediscovered at cost.
 `
 }
