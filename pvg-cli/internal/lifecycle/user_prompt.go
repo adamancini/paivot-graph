@@ -58,11 +58,33 @@ func UserPromptSubmit() error {
 	return json.NewEncoder(os.Stdout).Encode(resp)
 }
 
-// containsTriggerPhrase checks if the prompt contains any Paivot trigger phrase.
+// negationPrefixes are words that negate the trigger when they appear
+// immediately before the trigger phrase.
+var negationPrefixes = []string{
+	"don't ", "dont ", "do not ", "not ", "no ", "without ",
+	"never ", "stop ", "disable ", "skip ",
+}
+
+// containsTriggerPhrase checks if the prompt contains any Paivot trigger phrase,
+// excluding negated forms like "don't use paivot" or "not paivot".
 func containsTriggerPhrase(prompt string) bool {
 	lower := strings.ToLower(prompt)
 	for _, phrase := range triggerPhrases {
-		if strings.Contains(lower, phrase) {
+		idx := strings.Index(lower, phrase)
+		if idx < 0 {
+			continue
+		}
+
+		// Check if the phrase is preceded by a negation word.
+		prefix := lower[:idx]
+		negated := false
+		for _, neg := range negationPrefixes {
+			if strings.HasSuffix(prefix, neg) {
+				negated = true
+				break
+			}
+		}
+		if !negated {
 			return true
 		}
 	}

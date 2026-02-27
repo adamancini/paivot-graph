@@ -116,17 +116,21 @@ func runHook(name string) error {
 }
 
 func runGuard() error {
-	// Parse JSON from stdin
+	// Parse JSON from stdin -- fail-closed on parse errors to prevent
+	// bypasses via malformed input.
 	input, err := guard.ParseInput()
 	if err != nil {
-		// If we can't parse, allow (don't block on parse failures)
-		return nil
+		fmt.Fprintf(os.Stderr, "pvg guard: failed to parse hook input: %v\n", err)
+		os.Exit(2)
+		return nil // unreachable, for the compiler
 	}
 
-	// Determine vault directory
+	// Determine vault directory -- if vault isn't configured, nothing to
+	// protect, so allow. This is intentional: the guard only activates when
+	// a vault is present.
 	vaultDir, err := vaultcfg.VaultDir()
 	if err != nil {
-		// If vault isn't found, nothing to protect
+		// No vault configured -- nothing to protect.
 		return nil
 	}
 

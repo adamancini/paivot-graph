@@ -204,9 +204,32 @@ func checkBashCommand(vaultDir, command string) Result {
 				return Result{Allowed: false, Reason: systemBlockMsg(folder)}
 			}
 		}
+
+		// Detect interpreter-based writes: python3 -c 'open(...)', ruby -e,
+		// node -e, perl -e, etc.
+		if containsInterpreterWrite(command, protected) {
+			return Result{Allowed: false, Reason: systemBlockMsg(folder)}
+		}
 	}
 
 	return Result{Allowed: true}
+}
+
+// interpreterPrefixes lists interpreter command prefixes that can write files.
+var interpreterPrefixes = []string{
+	"python3 -c", "python -c", "python3 -c", "python2 -c",
+	"ruby -e", "node -e", "perl -e", "lua -e",
+}
+
+// containsInterpreterWrite returns true if the command uses a scripting
+// interpreter and references a protected path (likely a file write).
+func containsInterpreterWrite(command, protectedPath string) bool {
+	for _, prefix := range interpreterPrefixes {
+		if strings.Contains(command, prefix) && strings.Contains(command, protectedPath) {
+			return true
+		}
+	}
+	return false
 }
 
 const projectVaultBlockMsg = "BLOCKED: Direct modification of project vault. " +
@@ -222,12 +245,18 @@ func checkProjectVault(projectRoot, filePath string) Result {
 	}
 
 	normRoot := normalizePath(projectRoot)
-	normFile := normalizePath(filePath)
+
+	// Resolve relative paths against project root before comparison.
+	resolvedFile := filePath
+	if !filepath.IsAbs(filePath) {
+		resolvedFile = filepath.Join(normRoot, filePath)
+	}
+	normFile := normalizePath(resolvedFile)
 
 	vaultPrefix := normRoot + projectVaultPath
 	if !strings.HasPrefix(normFile, vaultPrefix) {
 		// Also check cleaned but non-resolved path (file may not exist)
-		cleanFile := filepath.Clean(filePath)
+		cleanFile := filepath.Clean(resolvedFile)
 		if !strings.HasPrefix(cleanFile, vaultPrefix) {
 			return Result{Allowed: true}
 		}
@@ -276,6 +305,11 @@ func checkBashProjectVault(projectRoot, command string) Result {
 		if strings.Contains(command, pattern) {
 			return Result{Allowed: false, Reason: projectVaultBlockMsg}
 		}
+	}
+
+	// Detect interpreter-based writes targeting project vault.
+	if containsInterpreterWrite(command, vaultSegment) {
+		return Result{Allowed: false, Reason: projectVaultBlockMsg}
 	}
 
 	return Result{Allowed: true}

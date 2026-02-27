@@ -246,3 +246,65 @@ func TestCheckBash_BlocksProjectVaultSedInPlace(t *testing.T) {
 		t.Errorf("expected blocked for sed -i on .vault/knowledge/, got allowed")
 	}
 }
+
+// --- Interpreter write detection tests ---
+
+func TestCheckBash_BlocksPython3Write(t *testing.T) {
+	cmd := `python3 -c 'open("` + testVaultDir + `/methodology/evil.md","w").write("pwned")'`
+	input := HookInput{
+		ToolName:  "Bash",
+		ToolInput: ToolInput{Command: cmd},
+	}
+	result := Check(testVaultDir, testProjectRoot, input)
+	if result.Allowed {
+		t.Errorf("expected blocked for python3 -c write to methodology/, got allowed")
+	}
+}
+
+func TestCheckBash_BlocksNodeWrite(t *testing.T) {
+	cmd := `node -e 'require("fs").writeFileSync("` + testVaultDir + `/decisions/evil.md", "pwned")'`
+	input := HookInput{
+		ToolName:  "Bash",
+		ToolInput: ToolInput{Command: cmd},
+	}
+	result := Check(testVaultDir, testProjectRoot, input)
+	if result.Allowed {
+		t.Errorf("expected blocked for node -e write to decisions/, got allowed")
+	}
+}
+
+func TestCheckBash_BlocksRubyWrite(t *testing.T) {
+	cmd := `ruby -e 'File.write("` + testVaultDir + `/patterns/evil.md", "pwned")'`
+	input := HookInput{
+		ToolName:  "Bash",
+		ToolInput: ToolInput{Command: cmd},
+	}
+	result := Check(testVaultDir, testProjectRoot, input)
+	if result.Allowed {
+		t.Errorf("expected blocked for ruby -e write to patterns/, got allowed")
+	}
+}
+
+func TestCheckBash_BlocksInterpreterWriteProjectVault(t *testing.T) {
+	cmd := `python3 -c 'open("` + testProjectRoot + `/.vault/knowledge/patterns/evil.md","w").write("pwned")'`
+	input := HookInput{
+		ToolName:  "Bash",
+		ToolInput: ToolInput{Command: cmd},
+	}
+	result := Check(testVaultDir, testProjectRoot, input)
+	if result.Allowed {
+		t.Errorf("expected blocked for python3 -c write to project vault, got allowed")
+	}
+}
+
+func TestCheckFilePath_BlocksRelativeProjectVaultPath(t *testing.T) {
+	// Relative path that resolves to project vault
+	input := HookInput{
+		ToolName:  "Write",
+		ToolInput: ToolInput{FilePath: testProjectRoot + "/.vault/knowledge/../knowledge/patterns/test.md"},
+	}
+	result := Check(testVaultDir, testProjectRoot, input)
+	if result.Allowed {
+		t.Errorf("expected blocked for relative path to project vault, got allowed")
+	}
+}
