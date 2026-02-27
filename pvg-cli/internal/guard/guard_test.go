@@ -196,6 +196,19 @@ func TestCheckFilePath_AllowsProjectVaultSettings(t *testing.T) {
 	}
 }
 
+func TestCheckFilePath_AllowsDispatcherStateOutsideKnowledge(t *testing.T) {
+	// Dispatcher state lives in .vault/ (not .vault/knowledge/), so the
+	// project vault guard should not block it.
+	input := HookInput{
+		ToolName:  "Write",
+		ToolInput: ToolInput{FilePath: testProjectRoot + "/.vault/.dispatcher-state.json"},
+	}
+	result := Check(testVaultDir, testProjectRoot, input)
+	if !result.Allowed {
+		t.Errorf("expected allowed for .vault/.dispatcher-state.json, got blocked: %s", result.Reason)
+	}
+}
+
 func TestCheckBash_BlocksProjectVaultWrite(t *testing.T) {
 	input := HookInput{
 		ToolName:  "Bash",

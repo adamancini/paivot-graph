@@ -143,10 +143,10 @@ assert v_file == v_plugin == v_market, \
 		|| (echo "FAIL: version mismatch across VERSION, plugin.json, marketplace.json" && exit 1)
 	@echo "OK: All versions in sync ($(VERSION))"
 	@echo ""
-	@echo "Checking hooks.json registers all 5 hook events..."
-	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; assert all(k in h for k in ['PreToolUse','SessionStart','PreCompact','Stop','SessionEnd']), 'missing hook events'" \
+	@echo "Checking hooks.json registers all 8 hook events..."
+	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; assert all(k in h for k in ['PreToolUse','UserPromptSubmit','SubagentStart','SubagentStop','SessionStart','PreCompact','Stop','SessionEnd']), 'missing hook events'" \
 		|| (echo "FAIL: hooks.json missing required events" && exit 1)
-	@echo "OK: All 5 hook events registered"
+	@echo "OK: All 8 hook events registered"
 	@echo ""
 	@echo "Checking hooks.json points to pvg binary..."
 	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; cmds=[hook.get('command','') for e in h.values() for entry in e for hook in entry.get('hooks',[])]; bad=[c for c in cmds if 'bin/pvg' not in c]; assert not bad, f'hooks not using pvg: {bad}'" \

@@ -1,5 +1,5 @@
 {
-  "description": "paivot-graph hooks -- vault consultation, knowledge capture, stop reminder, session logging, scope guard (powered by pvg)",
+  "description": "paivot-graph hooks -- vault consultation, knowledge capture, stop reminder, session logging, scope guard, dispatcher mode (powered by pvg)",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,42 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/pvg guard",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/pvg hook user-prompt",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "paivot-graph:business-analyst|paivot-graph:designer|paivot-graph:architect",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/pvg hook subagent-start",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "paivot-graph:business-analyst|paivot-graph:designer|paivot-graph:architect",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/pvg hook subagent-stop",
             "timeout": 5
           }
         ]

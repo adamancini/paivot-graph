@@ -10,6 +10,7 @@ import (
 
 	"github.com/RamXX/vlt"
 
+	"github.com/RamXX/paivot-graph/pvg-cli/internal/dispatcher"
 	"github.com/RamXX/paivot-graph/pvg-cli/internal/vaultcfg"
 )
 
@@ -25,22 +26,25 @@ func SessionEnd() error {
 		input.CWD, _ = os.Getwd()
 	}
 
-	// 2. Detect project name
+	// 2. Clear dispatcher state (prevent stale state across sessions)
+	_ = dispatcher.Off(input.CWD)
+
+	// 3. Detect project name
 	project := detectProject(input.CWD)
 	today := time.Now().Format("2006-01-02")
 
-	// 3. Collect notes created this session
+	// 4. Collect notes created this session
 	links := collectSessionLinks(input.CWD, project, today)
 	entry := formatSessionEntry(today, links)
 
-	// 4. Try vlt first
+	// 5. Try vlt first
 	v, err := vaultcfg.OpenVault()
 	if err == nil {
 		_ = v.Append(project, entry, false)
 		return nil
 	}
 
-	// 5. Fallback to direct file ops
+	// 6. Fallback to direct file ops
 	vaultDir, derr := vaultcfg.VaultDir()
 	if derr != nil {
 		return nil // silently skip

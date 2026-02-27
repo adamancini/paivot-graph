@@ -100,6 +100,7 @@ func TestStaticOperatingMode_ContainsKeyContent(t *testing.T) {
 		"BEFORE STARTING",
 		"WHILE WORKING",
 		"BEFORE ENDING",
+		"DISPATCHER MODE",
 		"D&F ORCHESTRATION",
 		"QUESTIONS_FOR_USER",
 		"vlt vault=",

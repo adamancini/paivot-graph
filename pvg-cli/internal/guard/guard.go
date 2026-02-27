@@ -71,7 +71,10 @@ func Check(vaultDir, projectRoot string, input HookInput) Result {
 		if r := checkFilePath(vaultDir, input.ToolInput.FilePath); !r.Allowed {
 			return r
 		}
-		return checkProjectVault(projectRoot, input.ToolInput.FilePath)
+		if r := checkProjectVault(projectRoot, input.ToolInput.FilePath); !r.Allowed {
+			return r
+		}
+		return CheckDispatcher(projectRoot, input)
 	case "Bash":
 		if r := checkBashCommand(vaultDir, input.ToolInput.Command); !r.Allowed {
 			return r
@@ -79,7 +82,10 @@ func Check(vaultDir, projectRoot string, input HookInput) Result {
 		if r := checkBashProjectVault(projectRoot, input.ToolInput.Command); !r.Allowed {
 			return r
 		}
-		return CheckFSM(projectRoot, input.ToolInput.Command)
+		if r := CheckFSM(projectRoot, input.ToolInput.Command); !r.Allowed {
+			return r
+		}
+		return CheckDispatcher(projectRoot, input)
 	default:
 		return Result{Allowed: true}
 	}

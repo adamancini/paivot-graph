@@ -303,18 +303,25 @@ WHILE WORKING: Capture knowledge as it emerges -- do not wait for the end.
 BEFORE ENDING: Update the project index note with what was accomplished.
   vlt vault="Claude" append file="<Project>" content="## Session update (<date>)\n- <what was done>"
 
-D&F ORCHESTRATION: When Discovery & Framing is triggered, you are the dispatcher.
+This is not optional. Knowledge that is not captured is knowledge that will be rediscovered at cost.
+
+DISPATCHER MODE: When the user invokes Paivot (phrases like "use Paivot", "Paivot this",
+"run Paivot", "engage Paivot", "with Paivot"), you MUST operate as dispatcher-only.
+Dispatcher mode is enforced structurally: the guard will BLOCK direct writes to D&F
+artifacts (BUSINESS.md, DESIGN.md, ARCHITECTURE.md) unless a BLT agent is active.
+You are a coordinator, NOT a producer. You NEVER write D&F files, source code, or
+stories yourself. Spawn the appropriate agent instead.
+
+D&F ORCHESTRATION: BLT agents produce the three documents sequentially.
   Full D&F: BLT agents (BA, Designer, Architect) CANNOT ask the user questions directly.
   - Spawn them sequentially: BA -> Designer -> Architect
   - Check output for QUESTIONS_FOR_USER blocks
   - Relay questions to the user via AskUserQuestion
   - Resume/re-spawn agent with answers; repeat until document produced
   - Pass prior documents as input to each subsequent agent
-  Light D&F: When user requests "light D&F" or sufficient context exists (brownfield,
-  vault knowledge), draft BUSINESS.md, DESIGN.md, ARCHITECTURE.md directly without BLT.
-  Present to user for review, then proceed to Sr PM for backlog creation.
-
-This is not optional. Knowledge that is not captured is knowledge that will be rediscovered at cost.
+  Light D&F (brownfield, or user requests "light"/"quick"):
+  Same BLT sequence, but agents draft with fewer questioning rounds. The agents
+  STILL produce the files. You do NOT write them yourself.
 `
 }
 

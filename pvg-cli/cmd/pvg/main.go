@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/RamXX/paivot-graph/pvg-cli/internal/dispatcher"
 	"github.com/RamXX/paivot-graph/pvg-cli/internal/governance"
 	"github.com/RamXX/paivot-graph/pvg-cli/internal/guard"
 	"github.com/RamXX/paivot-graph/pvg-cli/internal/lifecycle"
@@ -54,6 +55,8 @@ func main() {
 	case "seed":
 		force := len(args) > 0 && args[0] == "--force"
 		err = runSeed(force)
+	case "dispatcher":
+		err = runDispatcher(args)
 	case "settings":
 		err = settings.Run(args)
 	case "version":
@@ -80,7 +83,11 @@ Commands:
   hook pre-compact       PreCompact lifecycle hook
   hook stop              Stop lifecycle hook
   hook session-end       SessionEnd lifecycle hook
+  hook user-prompt       UserPromptSubmit hook (auto-detect dispatcher mode)
+  hook subagent-start    SubagentStart hook (BLT agent tracking)
+  hook subagent-stop     SubagentStop hook (BLT agent tracking)
   guard                  PreToolUse scope guard (reads JSON from stdin)
+  dispatcher on|off|status  Manage dispatcher mode
   seed [--force]         Seed vault with agent prompts and conventions
   settings [key=value]   View or set project settings
   version                Print version
@@ -97,6 +104,12 @@ func runHook(name string) error {
 		return lifecycle.Stop()
 	case "session-end":
 		return lifecycle.SessionEnd()
+	case "user-prompt":
+		return lifecycle.UserPromptSubmit()
+	case "subagent-start":
+		return lifecycle.SubagentStart()
+	case "subagent-stop":
+		return lifecycle.SubagentStop()
 	default:
 		return fmt.Errorf("unknown hook %q", name)
 	}
@@ -123,10 +136,39 @@ func runGuard() error {
 	// Check the operation
 	result := guard.Check(vaultDir, cwd, input)
 	if !result.Allowed {
-		fmt.Println(result.Reason)
+		fmt.Fprintln(os.Stderr, result.Reason)
 		os.Exit(2)
 	}
 
+	return nil
+}
+
+func runDispatcher(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: pvg dispatcher on|off|status")
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("cannot determine working directory: %w", err)
+	}
+
+	switch args[0] {
+	case "on":
+		if err := dispatcher.On(cwd); err != nil {
+			return fmt.Errorf("enable dispatcher mode: %w", err)
+		}
+		fmt.Println("Dispatcher mode enabled.")
+	case "off":
+		if err := dispatcher.Off(cwd); err != nil {
+			return fmt.Errorf("disable dispatcher mode: %w", err)
+		}
+		fmt.Println("Dispatcher mode disabled.")
+	case "status":
+		dispatcher.Status(cwd)
+	default:
+		return fmt.Errorf("unknown dispatcher subcommand %q (use on|off|status)", args[0])
+	}
 	return nil
 }
 

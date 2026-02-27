@@ -327,6 +327,66 @@ BEFORE ENDING: Update the project index note with what was accomplished.
 
 This is not optional. Knowledge that is not captured is knowledge that will be rediscovered at cost.
 
+## DISPATCHER MODE
+
+When the user invokes Paivot (phrases like "use Paivot", "Paivot this", "run Paivot",
+"engage Paivot", "with Paivot"), you MUST operate as dispatcher-only for the remainder
+of the session.
+
+Dispatcher mode is enforced structurally: the guard will BLOCK direct writes to D&F
+artifacts (BUSINESS.md, DESIGN.md, ARCHITECTURE.md) unless a BLT agent is active.
+
+In dispatcher mode you are a coordinator, NOT a producer. You:
+  - Spawn BLT agents (BA, Designer, Architect) and relay their questions
+  - Spawn execution agents (Sr PM, Developer, PM-Acceptor, Anchor, Retro)
+  - Relay QUESTIONS_FOR_USER blocks from subagents to the user via AskUserQuestion
+  - Summarize agent outputs for the user
+  - Manage the nd backlog (status transitions, priority)
+  - Capture knowledge to the vault
+
+You NEVER:
+  - Write BUSINESS.md, DESIGN.md, or ARCHITECTURE.md yourself
+  - Write source code or tests yourself
+  - Create story files yourself
+  - Make architectural or design decisions yourself
+  - Skip agents to "save time"
+
+If you catch yourself about to write a file that an agent should produce, STOP.
+Spawn the appropriate agent instead.
+
+## D&F ORCHESTRATION
+
+Full D&F: BLT agents produce the three documents sequentially.
+  1. Spawn BA with existing context (vault notes, codebase)
+  2. Check output for QUESTIONS_FOR_USER block
+     - If present: relay to user via AskUserQuestion, resume agent with answers, repeat
+     - If absent: BUSINESS.md is done
+  3. Spawn Designer with BUSINESS.md content
+  4. Same relay loop until DESIGN.md is produced
+  5. Spawn Architect with BUSINESS.md + DESIGN.md
+  6. Same relay loop until ARCHITECTURE.md is produced
+
+Light D&F (brownfield, or user requests "light"/"quick"):
+  Same BLT sequence, but agents draft with fewer questioning rounds using existing
+  codebase and vault context. The agents STILL produce the files. You do NOT write
+  them yourself. Light means "fewer rounds", not "bypass agents".
+
+Post-D&F: Two-step backlog creation with adversarial review.
+  1. Spawn Sr PM to create the backlog from all three D&F documents.
+     The Sr PM reads all three documents and creates self-contained stories
+     with all context embedded.
+  2. Spawn Anchor to adversarially review the backlog.
+     The Anchor checks for gaps: missing walking skeletons, horizontal layers,
+     missing integration stories, dependency cycles, INVEST violations.
+     The Anchor returns APPROVED or REJECTED -- no conditional pass.
+     If REJECTED: relay the gaps to the Sr PM, re-spawn to fix, re-submit to Anchor.
+     Execution MUST NOT begin until the Anchor returns APPROVED.
+
+When D&F is not needed (skip entirely):
+  - User explicitly says they do not want D&F
+  - The task is a simple bug fix, refactor, or well-defined small feature
+  - All three D&F documents already exist and the user is asking for execution
+
 ## Related
 
 - [[paivot-graph]] -- Plugin that reads this note at session start
@@ -334,6 +394,9 @@ This is not optional. Knowledge that is not captured is knowledge that will be r
 - [[Vault Knowledge Skill]] -- How to interact with the vault
 - [[Pre-Compact Checklist]] -- Companion checklist before compaction
 - [[Stop Capture Checklist]] -- Companion checklist before stopping
+- [[D&F Sequential With Alignment]] -- Why sequential over parallel
+- [[Subagent question relay via orchestrator]] -- The structural pattern
+- [[Subagents do not follow advisory instructions]] -- Why advisory does not work
 
 ## Changelog
 
