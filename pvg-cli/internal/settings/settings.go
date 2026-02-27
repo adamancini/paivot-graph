@@ -4,6 +4,7 @@ package settings
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -17,6 +18,10 @@ var defaults = map[string]string{
 	"auto_capture":            "true",
 	"staleness_days":          "30",
 	"stack_detection":         "false",
+	"workflow.fsm":            "false",
+	"workflow.sequence":       "open,in_progress,delivered,review,closed",
+	"workflow.exit_rules":     "blocked:open,in_progress;rejected:in_progress",
+	"workflow.custom_statuses": "delivered,review,rejected",
 }
 
 // Run handles the `pvg settings` command.
@@ -71,6 +76,7 @@ func showSettings(path string) error {
 func setSettings(path string, args []string) error {
 	settings := loadSettings(path)
 
+	workflowChanged := false
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -85,9 +91,21 @@ func setSettings(path string, args []string) error {
 
 		settings[key] = value
 		fmt.Printf("  set %s = %s\n", key, value)
+
+		if strings.HasPrefix(key, "workflow.") {
+			workflowChanged = true
+		}
 	}
 
-	return writeSettings(path, settings)
+	if err := writeSettings(path, settings); err != nil {
+		return err
+	}
+
+	if workflowChanged {
+		syncNdConfig(settings)
+	}
+
+	return nil
 }
 
 func loadSettings(path string) map[string]string {
@@ -135,4 +153,22 @@ func writeSettings(path string, settings map[string]string) error {
 	lines = append(lines, "")
 
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+}
+
+// LoadFile reads and parses the settings from a file path.
+// Returns a map of key-value pairs (empty if file is missing or unreadable).
+func LoadFile(path string) map[string]string {
+	return loadSettings(path)
+}
+
+// syncNdConfig propagates workflow settings to nd. Non-fatal on failure.
+func syncNdConfig(settings map[string]string) {
+	enabled := settings["workflow.fsm"] == "true"
+	if enabled {
+		if custom := settings["workflow.custom_statuses"]; custom != "" {
+			_ = exec.Command("nd", "config", "set", "status.custom", custom).Run()
+		}
+	} else {
+		_ = exec.Command("nd", "config", "set", "status.fsm", "false").Run()
+	}
 }

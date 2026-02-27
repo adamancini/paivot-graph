@@ -76,7 +76,10 @@ func Check(vaultDir, projectRoot string, input HookInput) Result {
 		if r := checkBashCommand(vaultDir, input.ToolInput.Command); !r.Allowed {
 			return r
 		}
-		return checkBashProjectVault(projectRoot, input.ToolInput.Command)
+		if r := checkBashProjectVault(projectRoot, input.ToolInput.Command); !r.Allowed {
+			return r
+		}
+		return CheckFSM(projectRoot, input.ToolInput.Command)
 	default:
 		return Result{Allowed: true}
 	}

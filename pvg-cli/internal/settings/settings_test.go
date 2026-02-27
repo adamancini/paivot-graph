@@ -96,3 +96,80 @@ func TestLoadSettings_SkipsComments(t *testing.T) {
 		t.Errorf("expected 5, got %q", s["session_start_max_notes"])
 	}
 }
+
+func TestLoadSettings_DotPrefixedKeys(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".settings.yaml")
+	content := "workflow.fsm: true\nworkflow.sequence: open,closed\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := loadSettings(path)
+	if s["workflow.fsm"] != "true" {
+		t.Errorf("expected 'true', got %q", s["workflow.fsm"])
+	}
+	if s["workflow.sequence"] != "open,closed" {
+		t.Errorf("expected 'open,closed', got %q", s["workflow.sequence"])
+	}
+}
+
+func TestLoadSettings_ExitRulesWithColons(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".settings.yaml")
+	// The value contains colons -- SplitN(line, ":", 2) should handle this
+	content := "workflow.exit_rules: blocked:open,in_progress;rejected:in_progress\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := loadSettings(path)
+	expected := "blocked:open,in_progress;rejected:in_progress"
+	if s["workflow.exit_rules"] != expected {
+		t.Errorf("expected %q, got %q", expected, s["workflow.exit_rules"])
+	}
+}
+
+func TestLoadFile_Exported(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".settings.yaml")
+	content := "workflow.fsm: true\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := LoadFile(path)
+	if s["workflow.fsm"] != "true" {
+		t.Errorf("LoadFile: expected 'true', got %q", s["workflow.fsm"])
+	}
+}
+
+func TestLoadFile_MissingFile(t *testing.T) {
+	s := LoadFile("/nonexistent/.settings.yaml")
+	if len(s) != 0 {
+		t.Errorf("LoadFile: expected empty map for missing file, got %d entries", len(s))
+	}
+}
+
+func TestWorkflowKeyRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".settings.yaml")
+
+	original := map[string]string{
+		"workflow.fsm":             "true",
+		"workflow.sequence":        "open,in_progress,closed",
+		"workflow.exit_rules":      "blocked:open;rejected:open",
+		"workflow.custom_statuses": "rejected",
+	}
+
+	if err := writeSettings(path, original); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded := loadSettings(path)
+	for k, v := range original {
+		if loaded[k] != v {
+			t.Errorf("key %q: expected %q, got %q", k, v, loaded[k])
+		}
+	}
+}

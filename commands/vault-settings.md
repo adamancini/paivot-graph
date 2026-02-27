@@ -47,6 +47,13 @@ auto_init_project_vault: ask
 # Whether session-start detects and outputs the project's tech stack
 # Options: true, false
 stack_detection: false
+
+# Workflow FSM -- structural enforcement of nd status transitions
+# When enabled, pvg guard blocks nd commands that skip workflow steps
+workflow.fsm: false
+workflow.sequence: open,in_progress,delivered,review,closed
+workflow.exit_rules: blocked:open,in_progress;rejected:in_progress
+workflow.custom_statuses: delivered,review,rejected
 ```
 
 ## Step 2: Present Current Configuration
@@ -64,6 +71,10 @@ Show the user the current state:
 | session_start_max_notes  | 10        | Max notes summarized per subfolder at start      |
 | auto_init_project_vault  | ask       | Create .vault/knowledge/ on first capture        |
 | stack_detection          | false     | Detect and output project tech stack at start    |
+| workflow.fsm             | false     | Structural enforcement of nd status transitions  |
+| workflow.sequence        | open,...  | Ordered status pipeline (forward=+1, backward=any) |
+| workflow.exit_rules      | ...       | Escape rules for blocked/rejected statuses        |
+| workflow.custom_statuses | ...       | Custom statuses registered with nd for display    |
 
 Settings file: .vault/knowledge/.settings.yaml
 ```
@@ -94,6 +105,15 @@ bin/pvg settings proposal_expiry_days=14
 
 **If `proposal_expiry_days` was changed:**
 - No side effects -- `/vault-triage` reads this at runtime
+
+**If `workflow.fsm` was changed:**
+- `true` (enable):
+  1. `bin/pvg settings workflow.fsm=true` (pvg auto-syncs nd)
+  2. Verify nd is initialized: `nd stats 2>/dev/null || echo "warning: nd not initialized"`
+  3. Report: "FSM enabled. pvg guard will enforce status transitions: <sequence>"
+- `false` (disable):
+  1. `bin/pvg settings workflow.fsm=false` (pvg auto-syncs nd)
+  2. Report: "FSM disabled. Status transitions are no longer enforced."
 
 ## Step 5: Report
 
