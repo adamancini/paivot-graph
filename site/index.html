@@ -278,6 +278,20 @@
       padding: 8px 0; text-align: center;
     }
 
+    .arch-loop {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      margin: 4px 0;
+    }
+    .arch-loop .arch-node { min-width: 160px; }
+    .arch-loop-arrows {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+      min-width: 100px;
+    }
+    .arch-loop-arrows .arrow-fwd { color: var(--teal); font-size: 14px; }
+    .arch-loop-arrows .arrow-back { color: var(--orange); font-size: 14px; }
+    .arch-loop-arrows .arrow-label { font-size: 10px; line-height: 1.2; }
+
     /* ---- Three-layer cards ---- */
     .layer-grid {
       display: grid;
@@ -623,8 +637,34 @@
 
     /* ---- Skills row ---- */
     .skills-row {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
       margin-top: 40px;
+    }
+
+    /* ---- Capabilities grid ---- */
+    .capabilities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .capability-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .capability-card:hover { transform: translateY(-3px); border-color: var(--border-bright); }
+    .capability-card h4 {
+      font-size: 16px; color: var(--text-bright); font-weight: 600; margin-bottom: 10px;
+    }
+    .capability-card p {
+      font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px;
+    }
+    .capability-card .cap-detail {
+      font-family: var(--mono); font-size: 12px; color: var(--teal-bright);
+      background: rgba(0, 169, 157, 0.08); padding: 8px 14px;
+      border-radius: 6px; line-height: 1.5;
     }
     .skill-card {
       background: var(--bg-card);
@@ -690,6 +730,9 @@
       .enforcement-demo { grid-template-columns: 1fr; }
       .vault-grid { grid-template-columns: 1fr; }
       .skills-row { grid-template-columns: 1fr; }
+      .capabilities-grid { grid-template-columns: 1fr; }
+      .arch-loop { flex-direction: column; gap: 8px; }
+      .arch-loop-arrows { flex-direction: row; min-width: unset; gap: 12px; }
       .workflow-pipeline { flex-wrap: wrap; justify-content: center; }
       .wf-arrow { transform: rotate(90deg); padding-top: 0; min-width: unset; }
       .footer-content { flex-direction: column; }
@@ -711,6 +754,7 @@
       <a href="#agents">Agents</a>
       <a href="#knowledge">Knowledge</a>
       <a href="#enforcement">Enforcement</a>
+      <a href="#capabilities">Capabilities</a>
       <a href="#install">Install</a>
       <a href="https://github.com/paivot-ai/paivot-graph" class="cta" target="_blank" rel="noopener">GitHub</a>
     </div>
@@ -827,11 +871,12 @@
         <div class="arch-node"><div class="name">Architect</div><div class="role">Technical approach</div></div>
       </div>
       <div class="arch-connector"></div>
-      <div class="arch-tier">
+      <div class="arch-loop">
         <div class="arch-node"><div class="name">Sr. PM</div><div class="role">Creates backlog</div></div>
-      </div>
-      <div class="arch-connector"></div>
-      <div class="arch-tier">
+        <div class="arch-loop-arrows">
+          <span class="arrow-fwd">&rarr; backlog &rarr;</span>
+          <span class="arrow-back">&larr; gaps found &larr;</span>
+        </div>
         <div class="arch-node"><div class="name">Anchor</div><div class="role">Adversarial review</div></div>
       </div>
       <div class="arch-connector"></div>
@@ -843,9 +888,15 @@
         </div>
       </div>
       <div class="arch-connector"></div>
-      <div class="arch-tier">
-        <div class="arch-node"><div class="name">Developer</div><div class="role">Implements + proves</div></div>
-        <div class="arch-node"><div class="name">PM-Acceptor</div><div class="role">Evidence-based review</div></div>
+      <div class="arch-tier" style="gap:0">
+        <div class="arch-loop">
+          <div class="arch-node"><div class="name">Developer</div><div class="role">Implements + proves</div></div>
+          <div class="arch-loop-arrows">
+            <span class="arrow-fwd">&rarr; delivered &rarr;</span>
+            <span class="arrow-back">&larr; rejected &larr;</span>
+          </div>
+          <div class="arch-node"><div class="name">PM-Acceptor</div><div class="role">Evidence-based review</div></div>
+        </div>
         <div class="arch-node"><div class="name">Retro</div><div class="role">Harvests learnings</div></div>
       </div>
     </div>
@@ -985,7 +1036,7 @@
       </div>
       <div class="command-card reveal">
         <p class="command-name">/vault-settings</p>
-        <p class="command-desc">View and configure project-level settings: scope defaults, proposal expiry, git tracking preferences.</p>
+        <p class="command-desc">View and configure project-level settings. Key settings: <code>architecture.c4</code> (C4 model), <code>workflow.fsm</code> (status machine), <code>project_vault_git</code> (git tracking), <code>default_scope</code>, <code>stack_detection</code>, proposal expiry, and more.</p>
       </div>
       <div class="command-card reveal">
         <p class="command-name">/vault-status</p>
@@ -993,7 +1044,7 @@
       </div>
       <div class="command-card reveal">
         <p class="command-name">/intake</p>
-        <p class="command-desc">Collects user feedback and delegates to the Sr. PM agent to create a prioritized story backlog.</p>
+        <p class="command-desc">5-phase feedback-to-backlog pipeline: collect user feedback, gather vault context, detect project stack, delegate to the Sr. PM agent for story creation, then triage into the backlog. The primary entry point for turning ideas into work.</p>
       </div>
     </div>
 
@@ -1006,6 +1057,10 @@
       <div class="skill-card">
         <p class="skill-name">vlt-skill</p>
         <p class="skill-desc">Complete vlt command reference, agentic patterns, and advanced techniques. Fetched from GitHub at install time.</p>
+      </div>
+      <div class="skill-card">
+        <p class="skill-name">c4</p>
+        <p class="skill-desc">Architecture-as-code using the C4 model and Structurizr DSL. Teaches agents to maintain workspace.dsl, validate boundaries, and generate diagrams.</p>
       </div>
     </div>
   </div>
@@ -1087,12 +1142,62 @@
         <h4>Five Lifecycle Hooks</h4>
         <p>SessionStart loads context. PreToolUse guards scope. PreCompact captures knowledge. Stop checks the capture checklist. SessionEnd logs the session.</p>
       </div>
+      <div class="enforcement-feature reveal">
+        <h4>Agent Operating Rules</h4>
+        <p>Three rules every agent must follow: invoke skills via the Skill tool (never Bash), never edit vault files directly (SHA-256 integrity verification), and stop immediately on system errors instead of retrying.</p>
+      </div>
+      <div class="enforcement-feature reveal">
+        <h4>Dispatcher Guard</h4>
+        <p>PreToolUse hook blocks the orchestrator from writing D&amp;F files (BUSINESS.md, DESIGN.md, ARCHITECTURE.md) unless a BLT agent is active. Prevents the main agent from bypassing the balanced team.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ADVANCED CAPABILITIES ===== -->
+<section id="capabilities">
+  <div class="container">
+    <p class="section-label reveal">Advanced Capabilities</p>
+    <h2 class="section-title reveal">Beyond enforcement: built-in intelligence</h2>
+    <p class="section-desc reveal">Machine-checkable architecture, convergence protocols, and unattended execution -- capabilities that make Paivot more than a process framework.</p>
+
+    <div class="capabilities-grid">
+      <div class="capability-card reveal">
+        <h4>C4 Architecture-as-Code</h4>
+        <p>A Structurizr DSL file lives alongside ARCHITECTURE.md as a machine-checkable twin. Defines containers, components, and their allowed dependencies. The Anchor agent validates that code respects declared boundaries. Generated diagrams keep documentation in sync with reality.</p>
+        <div class="cap-detail">Opt-in via <code>architecture.c4</code> setting &middot; Structurizr DSL &middot; Auto-generated diagrams</div>
+      </div>
+      <div class="capability-card reveal">
+        <h4>BLT Convergence Protocol</h4>
+        <p>After all three Discovery &amp; Framing documents exist (BUSINESS.md, DESIGN.md, ARCHITECTURE.md), every BLT agent cross-reviews the other two for consistency. Contradictions are surfaced before the backlog is created. The system must reach BLT_ALIGNED status before the Sr. PM begins story creation.</p>
+        <div class="cap-detail">BA + Designer + Architect cross-review &middot; Must reach BLT_ALIGNED</div>
+      </div>
+      <div class="capability-card reveal">
+        <h4>Mandatory Questioning Rounds</h4>
+        <p>BLT agents follow a structural execution sequence: their first output must be QUESTIONS_FOR_USER, never a document. The orchestrator relays questions to the user, then resumes the agent with answers. This ensures requirements are clarified before any document is produced. Light D&amp;F means fewer rounds, not zero rounds.</p>
+        <div class="cap-detail">First output = QUESTIONS_FOR_USER &middot; Relay loop via orchestrator</div>
+      </div>
+      <div class="capability-card reveal">
+        <h4>Execution Loop (<code>/piv-loop</code>)</h4>
+        <p>Unattended dispatch loop that runs the full delivery pipeline autonomously. Priority order: accept delivered stories first, fix rejected stories second, implement ready stories third. Concurrency-limited to 2 developer agents + 1 PM-Acceptor (3 total subagents max).</p>
+        <div class="cap-detail">Priority: delivered > rejected > ready &middot; Max 2 dev + 1 PM = 3 concurrent</div>
+      </div>
+      <div class="capability-card reveal">
+        <h4>FSM Workflow Enforcement</h4>
+        <p>Optional state machine on <code>nd</code> issue status transitions. <code>pvg guard</code> validates that every status change follows the allowed graph -- for example, you cannot skip from <code>open</code> directly to <code>closed</code> without passing through <code>in-progress</code> and <code>delivered</code>. Invalid transitions are blocked with a clear error message.</p>
+        <div class="cap-detail">Configurable via <code>workflow.fsm</code> setting &middot; pvg guard validates transitions</div>
+      </div>
+      <div class="capability-card reveal">
+        <h4>Dispatcher Mode</h4>
+        <p>When Paivot is engaged, the orchestrator becomes coordinator-only. It spawns agents and relays questions but never writes code, documents, or stories itself. This is enforced structurally by the <code>pvg</code> hook system, not just by prompt instructions. The orchestrator dispatches; agents deliver.</p>
+        <div class="cap-detail">Orchestrator = coordinator only &middot; Enforced by pvg hook &middot; Agents deliver</div>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- ===== WORKFLOW ===== -->
-<section id="workflow">
+<section class="alt" id="workflow">
   <div class="container">
     <p class="section-label reveal">Delivery Pipeline</p>
     <h2 class="section-title reveal">Every story follows a strict delivery pipeline</h2>
@@ -1194,33 +1299,63 @@
           </tbody>
         </table>
       </div>
+      <div class="quality-card reveal">
+        <h3>Intake Pipeline</h3>
+        <p>The <code>/intake</code> command converts raw user feedback into a prioritized backlog through five structured phases.</p>
+        <table class="quality-table">
+          <thead><tr><th>Phase</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td>Collect</td><td>Gather user feedback and intent</td></tr>
+            <tr><td>Context</td><td>Search vault for related knowledge</td></tr>
+            <tr><td>Detect</td><td>Identify project stack and constraints</td></tr>
+            <tr><td>Delegate</td><td>Sr. PM creates stories from context</td></tr>
+            <tr><td>Triage</td><td>Prioritize and slot into backlog</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="quality-card reveal">
+        <h3>Vault Integrity</h3>
+        <p>SHA-256 checksums protect vault content from accidental or unauthorized modification. Agents never edit vault files directly.</p>
+        <table class="quality-table">
+          <thead><tr><th>Mechanism</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>SHA-256 baseline</td><td>Detects unauthorized file changes</td></tr>
+            <tr><td>vlt-only writes</td><td>All edits go through the CLI</td></tr>
+            <tr><td>Scope guard</td><td>Blocks direct Edit/Write to vault</td></tr>
+            <tr><td>Acknowledgement</td><td>External changes require explicit ack</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- ===== GETTING STARTED ===== -->
-<section class="alt" id="install">
+<section id="install">
   <div class="container">
     <p class="section-label reveal">Getting Started</p>
     <h2 class="section-title reveal">Up and running in four steps</h2>
-    <p class="section-desc reveal">Requires <a href="https://github.com/paivot-ai/vlt" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">vlt 0.9.0+</a>, <a href="https://github.com/paivot-ai/nd" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">nd</a>, an <a href="https://obsidian.md/" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">Obsidian vault</a>, <a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">Claude Code</a>, and <a href="https://go.dev/dl/" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">Go 1.24+</a>.</p>
+    <p class="section-desc reveal">Requires <a href="https://github.com/paivot-ai/vlt" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">vlt 0.9.0+</a>, <a href="https://github.com/paivot-ai/nd" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">nd</a>, an <a href="https://obsidian.md/" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">Obsidian vault</a>, and <a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--teal);text-decoration:none;font-weight:500" target="_blank" rel="noopener">Claude Code</a>.</p>
 
     <div class="steps">
       <div class="step reveal">
         <div class="step-num">1</div>
         <h3>Install Prerequisites</h3>
-        <p>Install vlt (vault CLI) and nd (git-native issue tracker). Both require Go. You also need an Obsidian vault named "Claude".</p>
-        <pre><span class="comment"># Install vlt (requires Go 1.24+)</span>
-<span class="cmd">go install github.com/paivot-ai/vlt@latest</span>
-<span class="cmd">vlt version</span>  <span class="comment"># should print vlt 0.9.0+</span>
+        <p>Install vlt (vault CLI) and nd (git-native issue tracker). Pre-built binaries are available on each project's GitHub Releases page -- no Go compiler needed. You also need an Obsidian vault named "Claude".</p>
+        <pre><span class="comment"># Option A: Download pre-built binaries from GitHub Releases</span>
+<span class="comment"># https://github.com/paivot-ai/vlt/releases</span>
+<span class="comment"># https://github.com/paivot-ai/nd/releases</span>
 
-<span class="comment"># Install nd (requires Go 1.22+)</span>
-<span class="cmd">go install github.com/paivot-ai/nd@latest</span></pre>
+<span class="comment"># Option B: Build from source (requires Go 1.24+)</span>
+<span class="cmd">go install github.com/paivot-ai/vlt@latest</span>
+<span class="cmd">go install github.com/paivot-ai/nd@latest</span>
+
+<span class="cmd">vlt version</span>  <span class="comment"># should print vlt 0.9.0+</span></pre>
       </div>
       <div class="step reveal">
         <div class="step-num">2</div>
         <h3>Install Paivot Graph</h3>
-        <p>Clone the repo and run the installer. This builds the <code>pvg</code> Go binary, fetches the vlt skill, and registers the plugin with Claude Code.</p>
+        <p>Clone the repo and run the installer. This installs the <code>pvg</code> binary (downloaded or built from source), fetches the vlt skill, and registers the plugin with Claude Code.</p>
         <pre><span class="cmd">git clone https://github.com/paivot-ai/paivot-graph.git</span>
 <span class="cmd">cd paivot-graph</span>
 <span class="cmd">make install</span></pre>
@@ -1249,7 +1384,7 @@
 </section>
 
 <!-- ===== ROADMAP ===== -->
-<section id="roadmap">
+<section class="alt" id="roadmap">
   <div class="container">
     <p class="section-label reveal">Platform Support</p>
     <h2 class="section-title reveal">One methodology, multiple platforms</h2>
