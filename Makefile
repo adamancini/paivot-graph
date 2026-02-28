@@ -50,13 +50,20 @@ test-pvg: ## Run pvg Go tests
 # Plugin cache sync -- copy pvg binary into the Claude Code plugin cache
 # ---------------------------------------------------------------------------
 
-sync-cache: build-pvg ## Copy pvg binary to plugin cache so hooks work at runtime
-	@if [ -d "$(CACHE_DIR)" ]; then \
-		mkdir -p "$(CACHE_DIR)/bin" && \
-		cp bin/pvg "$(CACHE_DIR)/bin/pvg" && \
-		echo "OK: pvg synced to plugin cache ($(CACHE_DIR)/bin/pvg)"; \
-	else \
-		echo "WARN: Plugin cache dir not found at $(CACHE_DIR)"; \
+sync-cache: build-pvg ## Copy pvg binary to ALL cached versions so running sessions survive upgrades
+	@found=0; \
+	if [ -d "$(CACHE_BASE)" ]; then \
+		for vdir in "$(CACHE_BASE)"/*/; do \
+			if [ -d "$$vdir" ]; then \
+				mkdir -p "$$vdir/bin" && \
+				cp bin/pvg "$$vdir/bin/pvg" && \
+				echo "OK: pvg synced to $$vdir/bin/pvg"; \
+				found=1; \
+			fi; \
+		done; \
+	fi; \
+	if [ "$$found" = "0" ]; then \
+		echo "WARN: No plugin cache dirs found under $(CACHE_BASE)"; \
 		echo "      Run 'make install' first, then 'make sync-cache'."; \
 	fi
 
