@@ -6,7 +6,7 @@ CACHE_DIR   := $(CACHE_BASE)/$(VERSION)
 
 .PHONY: install update uninstall test lint seed reseed check-deps \
         fetch-vlt-skill update-vlt-skill help build-pvg test-pvg \
-        sync-cache
+        sync-cache install-pvg
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -43,6 +43,11 @@ build-pvg: ## Build the pvg Go CLI (fetches Go modules if needed)
 		go build -ldflags "-X main.version=$(VERSION)" -o ../bin/pvg ./cmd/pvg/
 	@echo "Built bin/pvg $(VERSION)"
 
+install-pvg: build-pvg ## Install pvg binary to ~/go/bin
+	@mkdir -p "$(HOME)/go/bin"
+	cp bin/pvg "$(HOME)/go/bin/pvg"
+	@echo "Installed pvg $(VERSION) to $(HOME)/go/bin/pvg"
+
 test-pvg: ## Run pvg Go tests
 	cd pvg-cli && go test ./... -v
 
@@ -50,7 +55,7 @@ test-pvg: ## Run pvg Go tests
 # Plugin cache sync -- copy pvg binary into the Claude Code plugin cache
 # ---------------------------------------------------------------------------
 
-sync-cache: build-pvg ## Copy pvg binary to ALL cached versions so running sessions survive upgrades
+sync-cache: build-pvg ## Copy pvg binary and skills to ALL cached versions so running sessions survive upgrades
 	@found=0; \
 	if [ -d "$(CACHE_BASE)" ]; then \
 		for vdir in "$(CACHE_BASE)"/*/; do \
@@ -58,6 +63,13 @@ sync-cache: build-pvg ## Copy pvg binary to ALL cached versions so running sessi
 				mkdir -p "$$vdir/bin" && \
 				cp bin/pvg "$$vdir/bin/pvg" && \
 				echo "OK: pvg synced to $$vdir/bin/pvg"; \
+				for skill_dir in skills/*/; do \
+					if [ -d "$$skill_dir" ]; then \
+						mkdir -p "$$vdir/$$skill_dir" && \
+						cp -R "$$skill_dir"* "$$vdir/$$skill_dir" && \
+						echo "OK: $$skill_dir synced to $$vdir/$$skill_dir"; \
+					fi; \
+				done; \
 				found=1; \
 			fi; \
 		done; \
@@ -71,7 +83,7 @@ sync-cache: build-pvg ## Copy pvg binary to ALL cached versions so running sessi
 # Install / update / uninstall
 # ---------------------------------------------------------------------------
 
-install: check-deps build-pvg fetch-vlt-skill ## Full install: deps, build, marketplace, plugin, cache sync
+install: check-deps build-pvg install-pvg fetch-vlt-skill ## Full install: deps, build, marketplace, plugin, cache sync
 	@claude plugin marketplace add "$(PLUGIN_DIR)" 2>/dev/null \
 		&& echo "Marketplace registered." \
 		|| echo "Marketplace already registered."
@@ -82,7 +94,7 @@ install: check-deps build-pvg fetch-vlt-skill ## Full install: deps, build, mark
 	@echo ""
 	@echo "Install complete (v$(VERSION)). Restart Claude Code sessions for hooks to take effect."
 
-update: check-deps build-pvg update-vlt-skill ## Update plugin, vlt skill, and sync binary to cache
+update: check-deps build-pvg install-pvg update-vlt-skill ## Update plugin, vlt skill, and sync binary to cache
 	claude plugin marketplace update "$(PLUGIN_NAME)"
 	claude plugin update "$(PLUGIN_NAME)@$(PLUGIN_NAME)"
 	@$(MAKE) --no-print-directory sync-cache
