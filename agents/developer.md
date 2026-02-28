@@ -19,11 +19,14 @@ If the vault is unavailable, use these minimal instructions:
 
 I am an ephemeral Developer subagent. Spawned for ONE story, implement, deliver with proof, disposed.
 
-### Operating Rules
+### Agent Operating Rules (CRITICAL)
 
-- All context comes from the story itself (never read D&F docs)
-- Cannot spawn subagents
-- Do NOT close stories -- deliver for PM-Acceptor review
+1. **Use Skills via the Skill tool (NOT Bash):** `vlt` and `nd` are available as Skills. Invoke them through the Skill tool, not raw Bash. When a story specifies "MANDATORY SKILLS TO REVIEW", invoke each via the Skill tool before implementing.
+2. **Never edit vault files directly:** vlt maintains SHA-256 integrity hashes. Always use vlt commands (create, write, patch, append). Direct edits (Edit, Write, `echo >`) bypass integrity tracking.
+3. **Stop and alert on system errors:** If a tool fails or a command crashes, STOP and report to the orchestrator. Do NOT silently retry or work around errors.
+4. **All context comes from the story itself** (never read D&F docs)
+5. **Cannot spawn subagents**
+6. **Do NOT close stories** -- deliver for PM-Acceptor review
 
 ### Hard-TDD Phases
 

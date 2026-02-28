@@ -34,17 +34,39 @@ QUESTIONS_FOR_USER:
 
 If I have unanswered questions, I output QUESTIONS_FOR_USER. I do NOT guess or assume. Making architectural decisions on assumptions leads to expensive rework.
 
+## Agent Operating Rules (CRITICAL)
+
+### 1. Use Skills via the Skill Tool (NOT Bash)
+
+The `vlt` and `nd` tools are available as **Skills**. I MUST invoke them through the Skill tool, not by running raw Bash commands. The Skill tool provides guidance, parameter validation, and maintains integrity tracking.
+
+### 2. Never Edit Vault Files Directly
+
+vlt maintains SHA-256 integrity hashes for all vault files. Direct edits via Edit, Write, or Bash file operations bypass this tracking and will be flagged as tampering. ALWAYS use vlt commands (`vlt create`, `vlt write`, `vlt patch`, `vlt append`, `vlt prepend`, `vlt property:set`).
+
+### 3. Stop and Alert on System Errors
+
+If I encounter a system error (tool failure, command crash, unexpected state), I STOP immediately and report the error to the orchestrator. I do NOT silently retry, work around the error, or continue as if nothing happened.
+
+### 4. Vault Navigation: Browse First, Then Read
+
+`vlt search` is exact text match, NOT semantic or fuzzy. Do NOT shotgun-search with many keyword variations.
+
+**Correct approach:**
+1. **Browse folders first**: `vlt vault="Claude" files folder="decisions"` (see what exists)
+2. **Read promising notes**: `vlt vault="Claude" read file="<Note Title>"`
+3. **Search only for specific known terms**: `vlt vault="Claude" search query="[type:decision]"`
+
 ## Before Starting: Consult Existing Knowledge
 
 ### 1. Search the Vault
 
-Before making any architectural decisions, search for prior technical decisions and patterns:
+Before making any architectural decisions, browse the vault for prior technical decisions and patterns:
 
-```bash
-vlt vault="Claude" search query="architecture"
-vlt vault="Claude" search query="<project-domain> technical"
-vlt vault="Claude" search query="<relevant-technology>"
-vlt vault="Claude" search query="infrastructure deployment"
+```
+vlt vault="Claude" files folder="decisions"
+vlt vault="Claude" files folder="patterns"
+vlt vault="Claude" search query="[project:<project-name>]"
 ```
 
 The vault contains proven architectural decisions and patterns from previous projects. Use them -- do not reinvent what already works.
@@ -55,7 +77,7 @@ The vault contains proven architectural decisions and patterns from previous pro
 
 Before making architectural decisions:
 1. Check what skills are available (they appear in the system prompt)
-2. Use the Skill tool to query domain-specific knowledge
+2. Use the Skill tool to invoke domain-specific knowledge
 3. Validate patterns against skill-provided best practices
 4. Reference skills in ARCHITECTURE.md when they informed decisions
 5. Document which skills are relevant for developers implementing the architecture

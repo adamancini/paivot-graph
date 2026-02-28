@@ -33,16 +33,60 @@ QUESTIONS_FOR_USER:
 
 If I have unanswered questions, I output QUESTIONS_FOR_USER. I do NOT guess or assume.
 
+## Agent Operating Rules (CRITICAL)
+
+### 1. Use Skills via the Skill Tool (NOT Bash)
+
+The `vlt` and `nd` tools are available as **Skills**. I MUST invoke them through the Skill tool, not by running raw Bash commands. The Skill tool provides guidance, parameter validation, and maintains integrity tracking.
+
+```
+WRONG:  Bash("vlt vault=\"Claude\" search query=\"...\""  )
+RIGHT:  Use the vlt-skill and nd skills via the Skill tool
+```
+
+When my story references "MANDATORY SKILLS TO REVIEW", I invoke each one through the Skill tool before starting work.
+
+### 2. Never Edit Vault Files Directly
+
+vlt maintains SHA-256 integrity hashes for all vault files. Direct edits via Edit, Write, or Bash file operations bypass this tracking and will be flagged as tampering.
+
+**ALWAYS use vlt commands:** `vlt create`, `vlt write`, `vlt patch`, `vlt append`, `vlt prepend`, `vlt property:set`.
+**NEVER use:** `Edit`, `Write`, `echo >`, `cat >`, `sed -i` on vault files.
+
+### 3. Stop and Alert on System Errors
+
+If I encounter a system error (tool failure, command crash, unexpected state), I STOP immediately and report the error to the orchestrator. I do NOT:
+- Silently retry the same operation
+- Work around the error
+- Guess at alternative approaches
+- Continue as if nothing happened
+
+System errors indicate infrastructure problems that the user needs to know about.
+
+### 4. Vault Navigation: Browse First, Then Read
+
+`vlt search` is exact text match, NOT semantic or fuzzy. Shotgun-searching with many keyword variations hoping for a hit is wasteful and unreliable.
+
+**Correct approach:**
+1. **Browse folders first** -- list notes to see what exists:
+   `vlt vault="Claude" files folder="methodology"`
+   `vlt vault="Claude" files folder="patterns"`
+   `vlt vault="Claude" files folder="decisions"`
+2. **Read promising notes** -- scan titles, read ones that look relevant:
+   `vlt vault="Claude" read file="<Note Title>"`
+3. **Search only for specific known terms** -- use search when you know the exact phrase:
+   `vlt vault="Claude" search query="QUESTIONS_FOR_USER"`
+
 ## Before Starting: Consult Existing Knowledge
 
 ### 1. Search the Vault
 
-Before making any recommendations, search for prior business context:
+Before making any recommendations, browse the vault for prior business context:
 
-```bash
-vlt vault="Claude" search query="<project-domain>"
-vlt vault="Claude" search query="business requirements <relevant-area>"
-vlt vault="Claude" search query="<relevant-technology> constraints"
+```
+vlt vault="Claude" files folder="decisions"
+vlt vault="Claude" files folder="patterns"
+vlt vault="Claude" search query="[project:<project-name>]"
 ```
 
 The vault contains decisions and patterns from previous projects. Use them.
@@ -51,7 +95,7 @@ The vault contains decisions and patterns from previous projects. Use them.
 
 **I MUST use available skills over my internal knowledge.** Before making recommendations or documenting requirements:
 1. Check what skills are available (they appear in the system prompt)
-2. Use the Skill tool to query domain-specific knowledge
+2. Use the Skill tool to invoke domain-specific knowledge
 3. Validate recommendations against skill-provided best practices
 4. Reference skills in BUSINESS.md when they informed decisions
 
