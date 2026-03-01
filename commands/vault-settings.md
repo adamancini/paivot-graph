@@ -11,7 +11,7 @@ Manage paivot-graph configuration for the current project. Settings are stored i
 
 Check if settings file exists and read it:
 ```bash
-bin/pvg settings
+pvg settings
 ```
 
 If the pvg binary is not available, read the file directly:
@@ -95,13 +95,13 @@ Otherwise, ask the user which setting they want to change and what value to set.
 
 Use the pvg binary to apply settings changes:
 ```bash
-bin/pvg settings <key>=<value>
+pvg settings <key>=<value>
 ```
 
 For example:
 ```bash
-bin/pvg settings project_vault_git=tracked
-bin/pvg settings proposal_expiry_days=14
+pvg settings project_vault_git=tracked
+pvg settings proposal_expiry_days=14
 ```
 
 **If `project_vault_git` was changed:**
@@ -114,11 +114,11 @@ bin/pvg settings proposal_expiry_days=14
 
 **If `workflow.fsm` was changed:**
 - `true` (enable):
-  1. `bin/pvg settings workflow.fsm=true` (pvg auto-syncs nd)
+  1. `pvg settings workflow.fsm=true` (pvg auto-syncs nd)
   2. Verify nd is initialized: `nd stats 2>/dev/null || echo "warning: nd not initialized"`
   3. Report: "FSM enabled. pvg guard will enforce status transitions: <sequence>"
 - `false` (disable):
-  1. `bin/pvg settings workflow.fsm=false` (pvg auto-syncs nd)
+  1. `pvg settings workflow.fsm=false` (pvg auto-syncs nd)
   2. Report: "FSM disabled. Status transitions are no longer enforced."
 
 **If `architecture.c4` was changed:**
@@ -147,5 +147,5 @@ Other commands (`/vault-capture`, `/vault-triage`, session-start hook) should ch
 
 To read a setting programmatically:
 ```bash
-bin/pvg settings <key>
+pvg settings <key>
 ```

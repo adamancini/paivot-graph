@@ -55,7 +55,7 @@ This is a Claude Code plugin. You need [Claude Code](https://docs.anthropic.com/
 ## Installation
 
 ```bash
-git clone https://github.com/RamXX/paivot-graph.git
+git clone https://github.com/paivot-ai/paivot-graph.git
 cd paivot-graph
 make install
 ```

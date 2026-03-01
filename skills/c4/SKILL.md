@@ -13,7 +13,7 @@ Maintain a machine-checkable C4 architecture model alongside the narrative ARCHI
 Check the project setting before using this skill:
 
 ```bash
-bin/pvg settings architecture.c4
+pvg settings architecture.c4
 ```
 
 - `true` -- maintain the model, enforce boundaries, generate diagrams
