@@ -1,7 +1,7 @@
 ---
 description: Run unattended execution loop until complete or blocked
 allowed-tools: ["Bash", "Read", "Glob", "Grep", "Skill", "Task", "AskUserQuestion"]
-args: "[EPIC_ID] [--all] [--max-iterations N]"
+args: "[EPIC_ID] [--all] [--max-iterations|--max N]"
 ---
 
 # piv-loop -- Unattended Execution Loop

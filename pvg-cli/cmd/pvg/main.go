@@ -14,7 +14,7 @@
 //	pvg guard                    # PreToolUse scope guard (stdin: JSON)
 //	pvg seed [--force]           # Seed vault with agent prompts
 //	pvg settings [key=value]     # View/set project settings
-//	pvg loop setup [--all|--epic EPIC_ID] [--max-iterations N]
+//	pvg loop setup [--all|--epic EPIC_ID] [--max-iterations|--max N]
 //	pvg loop cancel              # Cancel active loop
 //	pvg loop status              # Show loop state
 //	pvg version                  # Print version
@@ -95,7 +95,7 @@ Commands:
   hook subagent-start    SubagentStart hook (BLT agent tracking)
   hook subagent-stop     SubagentStop hook (BLT agent tracking)
   guard                  PreToolUse scope guard (reads JSON from stdin)
-  loop setup [flags]     Start an execution loop (--all, --epic ID, --max-iterations N)
+  loop setup [flags]     Start an execution loop (--all, --epic ID, --max[-iterations] N)
   loop cancel            Cancel active execution loop
   loop status            Show execution loop state
   dispatcher on|off|status  Manage dispatcher mode
@@ -189,7 +189,8 @@ func runDispatcher(args []string) error {
 
 func runLoop(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: pvg loop setup|cancel|status")
+		loopUsage()
+		return fmt.Errorf("missing subcommand")
 	}
 
 	cwd, err := os.Getwd()
@@ -198,6 +199,9 @@ func runLoop(args []string) error {
 	}
 
 	switch args[0] {
+	case "help", "--help", "-h":
+		loopUsage()
+		return nil
 	case "setup":
 		return loopSetup(cwd, args[1:])
 	case "cancel":
@@ -205,8 +209,31 @@ func runLoop(args []string) error {
 	case "status":
 		return loopStatus(cwd)
 	default:
-		return fmt.Errorf("unknown loop subcommand %q (use setup|cancel|status)", args[0])
+		loopUsage()
+		return fmt.Errorf("unknown loop subcommand %q", args[0])
 	}
+}
+
+func loopUsage() {
+	fmt.Fprintln(os.Stderr, `pvg loop -- execution loop management
+
+Subcommands:
+  setup [flags]   Start an execution loop
+  cancel          Cancel active execution loop
+  status          Show execution loop state
+
+Setup flags:
+  --all                    Run all ready work across all epics
+  --epic EPIC_ID           Target a specific epic (or pass EPIC_ID as positional arg)
+  --max-iterations N       Max iterations before stopping (default: 50, 0 for unlimited)
+  --max N                  Alias for --max-iterations
+  --help, -h               Show this help
+
+Examples:
+  pvg loop setup --all
+  pvg loop setup --epic PROJ-a1b
+  pvg loop setup PROJ-a1b --max 10
+  pvg loop setup --all --max-iterations 25`)
 }
 
 func loopSetup(cwd string, args []string) error {
@@ -219,6 +246,9 @@ func loopSetup(cwd string, args []string) error {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--help", "-h":
+			loopUsage()
+			return nil
 		case "--all":
 			mode = "all"
 		case "--epic":
@@ -228,9 +258,9 @@ func loopSetup(cwd string, args []string) error {
 			i++
 			epicID = args[i]
 			mode = "epic"
-		case "--max-iterations":
+		case "--max-iterations", "--max":
 			if i+1 >= len(args) {
-				return fmt.Errorf("--max-iterations requires an argument")
+				return fmt.Errorf("%s requires an argument", args[i])
 			}
 			i++
 			n, err := strconv.Atoi(args[i])
@@ -239,11 +269,17 @@ func loopSetup(cwd string, args []string) error {
 			}
 			maxIter = n
 		default:
+			// Reject unknown flags before positional fallback
+			if len(args[i]) > 1 && args[i][0] == '-' {
+				loopUsage()
+				return fmt.Errorf("unknown flag %q", args[i])
+			}
 			// Positional argument -- treat as epic ID
 			if mode == "" {
 				epicID = args[i]
 				mode = "epic"
 			} else {
+				loopUsage()
 				return fmt.Errorf("unexpected argument: %s", args[i])
 			}
 		}
