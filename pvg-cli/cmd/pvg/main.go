@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"strconv"
 
@@ -36,8 +37,42 @@ import (
 	"github.com/RamXX/paivot-graph/pvg-cli/internal/vaultcfg"
 )
 
-// Set at build time via -ldflags
-var version = "dev"
+// Set at build time via -ldflags "-X main.version=..."
+// Falls back to VCS info from go build metadata when not set.
+var version = ""
+
+func resolvedVersion() string {
+	if version != "" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		var vcsRev, vcsTime, vcsDirty string
+		for _, s := range info.Settings {
+			switch s.Key {
+			case "vcs.revision":
+				vcsRev = s.Value
+			case "vcs.time":
+				vcsTime = s.Value
+			case "vcs.modified":
+				if s.Value == "true" {
+					vcsDirty = "-dirty"
+				}
+			}
+		}
+		if vcsRev != "" {
+			short := vcsRev
+			if len(short) > 7 {
+				short = short[:7]
+			}
+			v := "dev-" + short + vcsDirty
+			if vcsTime != "" {
+				v += " (" + vcsTime + ")"
+			}
+			return v
+		}
+	}
+	return "dev"
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -67,8 +102,8 @@ func main() {
 		err = runDispatcher(args)
 	case "settings":
 		err = settings.Run(args)
-	case "version":
-		fmt.Printf("pvg %s\n", version)
+	case "version", "--version", "-V":
+		fmt.Printf("pvg %s\n", resolvedVersion())
 	case "help", "--help", "-h":
 		usage()
 	default:
