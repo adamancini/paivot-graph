@@ -94,12 +94,23 @@ After the Sr. PM agent returns, present the backlog to the user:
 
 ### Concurrency Limits (HARD RULE)
 
-Unless the user has explicitly said otherwise for this session:
-- **Maximum 2 developer agents** running simultaneously
-- **Maximum 1 PM-Acceptor agent** running simultaneously
+Unless the user has explicitly said otherwise for this session, limits are **stack-dependent**.
+Detect from project files (Cargo.toml, *.xcodeproj, *.csproj, wrangler.toml/wrangler.jsonc,
+pyproject.toml, package.json, etc.).
+
+**Heavy stacks** (Rust, iOS/Swift, C#, CloudFlare Workers):
+- **Maximum 2 developer agents** simultaneously
+- **Maximum 1 PM-Acceptor agent** simultaneously
 - **Total active subagents (all types) must not exceed 3**
+
+**Light stacks** (Python, non-CF TypeScript/JavaScript):
+- **Maximum 4 developer agents** simultaneously
+- **Maximum 2 PM-Acceptor agents** simultaneously
+- **Total active subagents (all types) must not exceed 6**
+
+When a project mixes stacks, use the most restrictive limit.
 - Wait for an agent to finish before spawning another if at the limit
-- These limits exist to prevent context exhaustion. Violating them risks losing the entire session.
+- These limits prevent context and machine resource exhaustion.
 
 ### Execution Loop
 

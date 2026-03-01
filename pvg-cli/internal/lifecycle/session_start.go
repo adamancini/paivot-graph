@@ -286,10 +286,22 @@ func staticOperatingMode() string {
 	return `[VAULT] Operating mode for this session:
 
 CONCURRENCY LIMITS (HARD RULE -- unless user explicitly overrides):
-  - Maximum 2 developer agents running simultaneously
-  - Maximum 1 PM-Acceptor agent running simultaneously
-  - Total active subagents (all types) must not exceed 3
-  These limits prevent context exhaustion. Violating them risks losing the entire session.
+  Limits are stack-dependent. Detect from project files (Cargo.toml, *.xcodeproj,
+  *.csproj, wrangler.toml/wrangler.jsonc, pyproject.toml, package.json, etc.).
+
+  Heavy stacks (Rust, iOS/Swift, C#, CloudFlare Workers):
+    - Maximum 2 developer agents simultaneously
+    - Maximum 1 PM-Acceptor agent simultaneously
+    - Total active subagents (all types) must not exceed 3
+    Reason: compile + test cycles are CPU/memory intensive.
+
+  Light stacks (Python, non-CF TypeScript/JavaScript):
+    - Maximum 4 developer agents simultaneously
+    - Maximum 2 PM-Acceptor agents simultaneously
+    - Total active subagents (all types) must not exceed 6
+
+  When a project mixes stacks, use the most restrictive limit that applies.
+  These limits prevent context and machine resource exhaustion.
 
 BEFORE STARTING: Read the vault notes listed above. Do not rediscover what is already known.
   vlt vault="Claude" read file="<note>"
