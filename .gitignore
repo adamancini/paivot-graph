@@ -15,7 +15,3 @@ Thumbs.db
 # Internal documents
 ENTERPRISE.md
 
-# Build artifacts
-bin/
-/pvg
-pvg-cli/pvg

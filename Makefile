@@ -4,9 +4,8 @@ VERSION     := $(shell cat VERSION)
 CACHE_BASE  := $(HOME)/.claude/plugins/cache/$(PLUGIN_NAME)/$(PLUGIN_NAME)
 CACHE_DIR   := $(CACHE_BASE)/$(VERSION)
 
-.PHONY: install update uninstall test lint seed reseed check-deps \
-        fetch-vlt-skill update-vlt-skill help build-pvg test-pvg \
-        sync-cache install-pvg
+.PHONY: install update uninstall test lint seed reseed check-deps check-pvg \
+        fetch-vlt-skill update-vlt-skill help sync-cache
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -17,10 +16,11 @@ help: ## Show this help
 # ---------------------------------------------------------------------------
 
 check-deps: ## Verify required dependencies are installed
-	@command -v go >/dev/null 2>&1 || \
-		(echo "ERROR: go is not installed (required to build pvg)." && \
-		 echo "       Install from https://go.dev/dl/" && exit 1)
-	@echo "OK: go $$(go version | awk '{print $$3}')"
+	@command -v pvg >/dev/null 2>&1 || \
+		(echo "WARN: pvg is not installed." && \
+		 echo "      Install from https://github.com/paivot-ai/pvg" && \
+		 echo "      gh release download -R paivot-ai/pvg -p '*darwin*arm64*' -D /tmp && tar xzf /tmp/pvg_*.tar.gz -C ~/go/bin")
+	@command -v pvg >/dev/null 2>&1 && echo "OK: pvg $$(pvg version 2>&1)" || true
 	@command -v vlt >/dev/null 2>&1 || \
 		(echo "ERROR: vlt is not installed." && \
 		 echo "       Install from https://github.com/RamXX/vlt" && \
@@ -34,34 +34,26 @@ check-deps: ## Verify required dependencies are installed
 		echo "OK: nd found at $$(command -v nd)" || \
 		echo "WARN: nd not installed (needed for execution agents -- install from https://github.com/RamXX/nd)"
 
-# ---------------------------------------------------------------------------
-# Build
-# ---------------------------------------------------------------------------
-
-build-pvg: ## Build the pvg Go CLI (fetches Go modules if needed)
-	cd pvg-cli && go mod download && \
-		go build -ldflags "-X main.version=$(VERSION)" -o ../bin/pvg ./cmd/pvg/
-	@echo "Built bin/pvg $(VERSION)"
-
-install-pvg: build-pvg ## Install pvg binary to ~/go/bin
-	@mkdir -p "$(HOME)/go/bin"
-	cp bin/pvg "$(HOME)/go/bin/pvg"
-	@echo "Installed pvg $(VERSION) to $(HOME)/go/bin/pvg"
-
-test-pvg: ## Run pvg Go tests
-	cd pvg-cli && go test ./... -v
+check-pvg: ## Verify pvg is on PATH
+	@command -v pvg >/dev/null 2>&1 || \
+		(echo "ERROR: pvg is not on PATH." && \
+		 echo "       Install from https://github.com/paivot-ai/pvg" && \
+		 echo "       gh release download -R paivot-ai/pvg -p '*darwin*arm64*' -D /tmp && tar xzf /tmp/pvg_*.tar.gz -C ~/go/bin" && \
+		 exit 1)
+	@echo "OK: pvg found at $$(command -v pvg) -- $$(pvg version 2>&1)"
 
 # ---------------------------------------------------------------------------
-# Plugin cache sync -- copy pvg binary into the Claude Code plugin cache
+# Plugin cache sync -- copy pvg binary and skills into the Claude Code plugin cache
 # ---------------------------------------------------------------------------
 
-sync-cache: build-pvg ## Copy pvg binary and skills to ALL cached versions so running sessions survive upgrades
+sync-cache: check-pvg ## Copy pvg binary and skills to ALL cached versions so running sessions survive upgrades
 	@found=0; \
+	pvg_path=$$(command -v pvg); \
 	if [ -d "$(CACHE_BASE)" ]; then \
 		for vdir in "$(CACHE_BASE)"/*/; do \
 			if [ -d "$$vdir" ]; then \
 				mkdir -p "$$vdir/bin" && \
-				cp bin/pvg "$$vdir/bin/pvg" && \
+				cp "$$pvg_path" "$$vdir/bin/pvg" && \
 				echo "OK: pvg synced to $$vdir/bin/pvg"; \
 				for skill_dir in skills/*/; do \
 					if [ -d "$$skill_dir" ]; then \
@@ -83,7 +75,7 @@ sync-cache: build-pvg ## Copy pvg binary and skills to ALL cached versions so ru
 # Install / update / uninstall
 # ---------------------------------------------------------------------------
 
-install: check-deps build-pvg install-pvg fetch-vlt-skill ## Full install: deps, build, marketplace, plugin, cache sync
+install: check-deps check-pvg fetch-vlt-skill ## Full install: deps, pvg check, marketplace, plugin, cache sync
 	@claude plugin marketplace add "$(PLUGIN_DIR)" 2>/dev/null \
 		&& echo "Marketplace registered." \
 		|| echo "Marketplace already registered."
@@ -94,7 +86,7 @@ install: check-deps build-pvg install-pvg fetch-vlt-skill ## Full install: deps,
 	@echo ""
 	@echo "Install complete (v$(VERSION)). Restart Claude Code sessions for hooks to take effect."
 
-update: check-deps build-pvg install-pvg update-vlt-skill ## Update plugin, vlt skill, and sync binary to cache
+update: check-deps check-pvg update-vlt-skill ## Update plugin, vlt skill, and sync binary to cache
 	claude plugin marketplace update "$(PLUGIN_NAME)"
 	claude plugin update "$(PLUGIN_NAME)@$(PLUGIN_NAME)"
 	@$(MAKE) --no-print-directory sync-cache
@@ -110,11 +102,11 @@ uninstall: ## Remove plugin and marketplace
 # Vault seeding
 # ---------------------------------------------------------------------------
 
-seed: build-pvg ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
-	bin/pvg seed
+seed: check-pvg ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
+	CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed
 
-reseed: build-pvg ## Force-update all vault notes with latest plugin content
-	bin/pvg seed --force
+reseed: check-pvg ## Force-update all vault notes with latest plugin content
+	CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed --force
 
 # ---------------------------------------------------------------------------
 # vlt skill management
@@ -133,11 +125,11 @@ update-vlt-skill: ## Force-update the vlt skill from GitHub
 lint: ## Run shellcheck on shell scripts
 	shellcheck scripts/fetch-vlt-skill.sh
 
-test: lint test-pvg build-pvg ## Run all checks (shellcheck + Go tests + functional)
+test: lint check-pvg ## Run all checks (shellcheck + functional)
 	@echo "--- Functional checks ---"
-	@echo "Checking pvg binary exists..."
-	@test -x bin/pvg || (echo "FAIL: bin/pvg not found or not executable" && exit 1)
-	@echo "OK: bin/pvg built"
+	@echo "Checking pvg is on PATH..."
+	@command -v pvg >/dev/null 2>&1 || (echo "FAIL: pvg not found on PATH" && exit 1)
+	@echo "OK: pvg found at $$(command -v pvg)"
 	@echo ""
 	@echo "Checking scripts are executable..."
 	@test -x scripts/fetch-vlt-skill.sh || (echo "FAIL: fetch-vlt-skill.sh not executable" && exit 1)
@@ -168,7 +160,7 @@ assert v_file == v_plugin == v_market, \
 	@echo "OK: All 8 hook events registered"
 	@echo ""
 	@echo "Checking hooks.json points to pvg binary..."
-	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; cmds=[hook.get('command','') for e in h.values() for entry in e for hook in entry.get('hooks',[])]; bad=[c for c in cmds if 'bin/pvg' not in c]; assert not bad, f'hooks not using pvg: {bad}'" \
+	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; cmds=[hook.get('command','') for e in h.values() for entry in e for hook in entry.get('hooks',[])]; bad=[c for c in cmds if 'pvg' not in c]; assert not bad, f'hooks not using pvg: {bad}'" \
 		|| (echo "FAIL: hooks.json has hooks not using pvg" && exit 1)
 	@echo "OK: All hooks use pvg binary"
 	@echo ""
@@ -186,55 +178,55 @@ assert v_file == v_plugin == v_market, \
 	@echo "OK: All vault loaders use dynamic vlt commands"
 	@echo ""
 	@echo "Checking pvg guard allows non-vault Edit..."
-	@echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/safe.md"}}' | bin/pvg guard >/dev/null 2>&1; \
+	@echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/safe.md"}}' | pvg guard >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg guard allows non-vault Edit" || echo "FAIL: pvg guard blocked a safe Edit"
 	@echo ""
 	@echo "Checking pvg guard blocks vault methodology/ Edit..."
 	@echo '{"tool_name":"Edit","tool_input":{"file_path":"$(HOME)/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/methodology/Developer Agent.md"}}' \
-		| bin/pvg guard >/dev/null 2>&1; \
+		| pvg guard >/dev/null 2>&1; \
 		test $$? -eq 2 && echo "OK: pvg guard blocks methodology/ Edit" || echo "FAIL: pvg guard did not block methodology/ Edit"
 	@echo ""
 	@echo "Checking pvg guard blocks vault conventions/ Write..."
 	@echo '{"tool_name":"Write","tool_input":{"file_path":"$(HOME)/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/conventions/Session Operating Mode.md"}}' \
-		| bin/pvg guard >/dev/null 2>&1; \
+		| pvg guard >/dev/null 2>&1; \
 		test $$? -eq 2 && echo "OK: pvg guard blocks conventions/ Write" || echo "FAIL: pvg guard did not block conventions/ Write"
 	@echo ""
 	@echo "Checking pvg guard blocks vault decisions/ Edit..."
 	@echo '{"tool_name":"Edit","tool_input":{"file_path":"$(HOME)/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/decisions/Some Decision.md"}}' \
-		| bin/pvg guard >/dev/null 2>&1; \
+		| pvg guard >/dev/null 2>&1; \
 		test $$? -eq 2 && echo "OK: pvg guard blocks decisions/ Edit" || echo "FAIL: pvg guard did not block decisions/ Edit"
 	@echo ""
 	@echo "Checking pvg guard allows vault _inbox/ Write..."
 	@echo '{"tool_name":"Write","tool_input":{"file_path":"$(HOME)/Library/Mobile Documents/iCloud~md~obsidian/Documents/Claude/_inbox/Proposal.md"}}' \
-		| bin/pvg guard >/dev/null 2>&1; \
+		| pvg guard >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg guard allows _inbox/ Write" || echo "FAIL: pvg guard blocked _inbox/ Write"
 	@echo ""
 	@echo "Checking pvg guard allows safe Bash commands..."
-	@echo '{"tool_name":"Bash","tool_input":{"command":"ls /tmp"}}' | bin/pvg guard >/dev/null 2>&1; \
+	@echo '{"tool_name":"Bash","tool_input":{"command":"ls /tmp"}}' | pvg guard >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg guard allows safe Bash" || echo "FAIL: pvg guard blocked safe Bash"
 	@echo ""
 	@echo "Checking pvg guard allows vlt Bash commands..."
 	@echo '{"tool_name":"Bash","tool_input":{"command":"vlt vault=\"Claude\" append file=\"Sr PM Agent\" content=\"test\""}}' \
-		| bin/pvg guard >/dev/null 2>&1; \
+		| pvg guard >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg guard allows vlt commands" || echo "FAIL: pvg guard blocked vlt"
 	@echo ""
 	@echo "Checking pvg version..."
-	@bin/pvg version | grep -q "$(VERSION)" && echo "OK: pvg version matches VERSION file" || echo "FAIL: pvg version mismatch"
+	@pvg version >/dev/null 2>&1 && echo "OK: pvg version runs" || echo "FAIL: pvg version failed"
 	@echo ""
 	@echo "Checking pvg hook session-start exits 0..."
-	@echo '{}' | bin/pvg hook session-start >/dev/null 2>&1; \
+	@echo '{}' | pvg hook session-start >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg hook session-start exits 0" || echo "FAIL: pvg hook session-start did not exit 0"
 	@echo ""
 	@echo "Checking pvg hook pre-compact exits 0..."
-	@bin/pvg hook pre-compact >/dev/null 2>&1; \
+	@pvg hook pre-compact >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg hook pre-compact exits 0" || echo "FAIL: pvg hook pre-compact did not exit 0"
 	@echo ""
 	@echo "Checking pvg hook stop exits 0..."
-	@bin/pvg hook stop >/dev/null 2>&1; \
+	@pvg hook stop >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg hook stop exits 0" || echo "FAIL: pvg hook stop did not exit 0"
 	@echo ""
 	@echo "Checking pvg hook session-end exits 0..."
-	@echo '{}' | bin/pvg hook session-end >/dev/null 2>&1; \
+	@echo '{}' | pvg hook session-end >/dev/null 2>&1; \
 		test $$? -eq 0 && echo "OK: pvg hook session-end exits 0" || echo "FAIL: pvg hook session-end did not exit 0"
 	@echo ""
 	@echo "Checking pvg binary in plugin cache..."
