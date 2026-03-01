@@ -97,6 +97,27 @@ Or directly:
 pvg loop cancel
 ```
 
+## Post-Compaction Recovery
+
+After context compaction, you lose track of running agents and their worktrees.
+Do NOT investigate old worktrees or try to continue partial work. Instead:
+
+1. Check `nd list --status in_progress --json` for stories that were being worked on
+2. Discard any stale worktrees: `git worktree list` then `git worktree remove <path>` for agent worktrees
+3. Re-spawn fresh developer agents for in-progress stories -- they start clean from main
+4. Never spawn an agent whose cwd is inside another agent's worktree (causes nesting)
+
+The agents' worktree isolation means partial uncommitted work is lost on compaction.
+This is acceptable -- re-doing work is cheaper than untangling nested worktrees.
+
+## Shell Usage
+
+Do NOT redirect stderr on nd or pvg commands:
+- No `2>&1` -- causes duplicate error display in Claude Code
+- No `2>/dev/null` -- hides errors you need to see
+
+Claude Code's Bash tool already captures stderr separately. Run commands bare.
+
 ## How It Works
 
 The loop is driven by the Claude Code stop hook:
