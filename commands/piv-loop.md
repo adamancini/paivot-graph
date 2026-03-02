@@ -27,11 +27,23 @@ Verify activation succeeded before continuing.
 
 Each iteration, pick work in this order:
 
-1. **PM-Acceptor for delivered stories** (highest priority -- unblock the pipeline)
+0. **Sr. PM for bug triage** (highest priority -- discovered bugs need structure)
+   After any Developer or PM-Acceptor agent completes, scan its output for
+   `DISCOVERED_BUG:` blocks. If found, collect ALL bug reports from that agent
+   and spawn `paivot-graph:sr-pm` with:
+   ```
+   BUG TRIAGE MODE. Create properly structured bugs for these discovered issues:
+   <paste all DISCOVERED_BUG blocks>
+   ```
+   Wait for Sr. PM to finish before continuing. Bugs need epic placement and
+   dependency chains before other work can be prioritized correctly.
+
+1. **PM-Acceptor for delivered stories** (unblock the pipeline)
    ```bash
    nd list --status in_progress --label delivered --json
    ```
    For each: spawn `paivot-graph:pm` agent to review and accept/reject.
+   **After each acceptance**: the PM-Acceptor runs epic auto-close (see pm.md).
 
 2. **Developer for rejected stories** (fix before starting new work)
    ```bash
@@ -45,7 +57,9 @@ Each iteration, pick work in this order:
    ```
    For each: spawn `paivot-graph:developer` agent to implement.
 
-**Epic-scoped queries**: When targeting a specific epic, scope all queries:
+**Epic-scoped queries**: When targeting a specific epic, scope queries with `--parent`.
+But remember: the loop runs across the ENTIRE backlog, not just one epic (see Termination).
+
 ```bash
 nd ready --parent <epic-id> --json                        # Ready work in the epic
 nd children <epic-id> --json                              # All stories in the epic
@@ -90,23 +104,32 @@ If an agent fails, re-spawn it with corrective guidance. Do not do its work.
 
 ## Agent Types
 
-| Role | Agent Type |
-|------|-----------|
-| Developer | `paivot-graph:developer` |
-| PM-Acceptor | `paivot-graph:pm` |
+| Role | Agent Type | When |
+|------|-----------|------|
+| Sr. PM (bug triage) | `paivot-graph:sr-pm` | DISCOVERED_BUG blocks found in agent output |
+| PM-Acceptor | `paivot-graph:pm` | Stories with `delivered` label |
+| Developer | `paivot-graph:developer` | Ready or rejected stories |
 
 ## Termination Conditions
+
+**The loop is permanent.** It runs across the ENTIRE backlog, not a single epic.
+When an epic completes, the loop moves to the next epic with ready work.
+The loop only stops when the backlog is empty or fully blocked.
 
 The stop hook (`pvg hook stop`) evaluates these automatically:
 
 | Condition | Action |
 |-----------|--------|
-| All work complete (nothing in any state) | Allow exit, remove state |
-| All remaining work blocked | Allow exit, remove state |
-| Max iterations reached | Allow exit, remove state |
+| Entire backlog complete (nothing open anywhere) | Allow exit, remove state |
+| All remaining work blocked (no actionable items) | Allow exit, remove state |
+| Max iterations reached (if set) | Allow exit, remove state |
 | Too many consecutive waits (3) | Allow exit, remove state |
-| Actionable work exists (ready or delivered) | Block exit, continue loop |
+| Actionable work exists anywhere in backlog | Block exit, continue loop |
 | Only in-progress work (waiting) | Block exit, increment wait counter |
+
+**Epic completion is NOT a termination event.** When an epic's last story is
+accepted, the PM-Acceptor closes the epic (auto-close), and the loop moves on
+to the next piece of ready work in the backlog. The loop keeps running.
 
 ## Cancellation
 

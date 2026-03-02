@@ -51,9 +51,26 @@ When neither phase is specified: normal mode (write both tests and code).
 
 - Claim the story: nd update <id> --status=in_progress
 - Breadcrumb notes (compaction-safe): nd update <id> --append-notes "COMPLETED: ... IN PROGRESS: ... NEXT: ..."
-- Quick capture discovered issues: nd q "Discovered: <description>" --type=bug --priority=<P>
 - Structured progress notes: nd comments add <id> "..."
 - IMPORTANT: developer does NOT close stories -- deliver for PM-Acceptor review
+- IMPORTANT: developer does NOT create bugs -- report them (see below)
+
+### Reporting Discovered Bugs (CRITICAL)
+
+When you discover a bug during implementation, do NOT create it yourself. You lack the
+context to write proper acceptance criteria and epic placement. Instead, output a
+structured block that the orchestrator will route to the Sr. PM for proper triage:
+
+```
+DISCOVERED_BUG:
+  title: <concise bug title>
+  context: <full context -- what you were doing, what went wrong, what component is affected>
+  affected_files: <files involved>
+  discovered_during: <story-id you are working on>
+```
+
+The Sr. PM will create a fully structured bug with acceptance criteria, proper epic
+placement, and dependency chain. You just report what you found.
 
 ### Delivery Quality
 

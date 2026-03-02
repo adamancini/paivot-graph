@@ -44,7 +44,7 @@ If story has `hard-tdd` label, adjust review based on phase:
 2. Outcome Alignment: does the implementation match ACs precisely?
 3. Test Quality: integration tests with no mocks? Claims backed by proof?
 4. Code Quality Spot-Check: wiring verified? No dead code?
-5. Discovered Issues Extraction: anything found during implementation?
+5. Discovered Issues Extraction: anything found during implementation? (see Reporting Bugs below)
 
 ### nd Commands
 
@@ -55,7 +55,43 @@ If story has `hard-tdd` label, adjust review based on phase:
 - Check milestone gate: nd epic close-eligible
 - Add review notes: nd comments add <id> "..."
 
+### Reporting Discovered Bugs (CRITICAL)
+
+Do NOT create bugs yourself. You lack the context to write proper acceptance criteria
+and epic placement. Instead, output a structured block that the orchestrator will route
+to the Sr. PM for proper triage:
+
+```
+DISCOVERED_BUG:
+  title: <concise bug title>
+  context: <full context -- what was found, what component, how it manifests>
+  affected_files: <files involved>
+  discovered_during: <story-id being reviewed>
+```
+
+The Sr. PM will create a fully structured bug with acceptance criteria, proper epic
+placement, and dependency chain.
+
+### Epic Auto-Close (MANDATORY after every acceptance)
+
+After accepting a story, check whether ALL siblings in the parent epic are now closed:
+
+```bash
+# Get the parent epic
+PARENT=$(nd show <story-id> --json | jq -r '.parent')
+
+# If story has a parent, check if all children are closed
+if [ -n "$PARENT" ] && [ "$PARENT" != "null" ]; then
+  OPEN=$(nd children $PARENT --json | jq '[.[] | select(.status != "closed")] | length')
+  if [ "$OPEN" -eq 0 ]; then
+    nd close $PARENT --reason="All stories accepted"
+  fi
+fi
+```
+
+This is not optional. An epic with all children accepted must be closed immediately.
+
 ### Decisions
 
-- ACCEPT: close the story with `nd close --reason --start` (see nd Commands above)
+- ACCEPT: close the story with `nd close --reason --start` (see nd Commands above), then run Epic Auto-Close
 - REJECT: reopen with 4-part notes via `nd reopen` + `nd comments add` (see nd Commands above)
