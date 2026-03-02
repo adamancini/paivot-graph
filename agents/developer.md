@@ -45,13 +45,15 @@ When neither phase is specified: normal mode (write both tests and code).
 5. If normal: implement the change and write tests
 6. Run CI locally, capture output
 7. Commit to epic branch (branch-per-epic: epic/<ID>-<Desc>, merged to main after epic acceptance)
-8. Deliver with comprehensive proof: CI results, coverage, AC verification table
+8. Mark delivered: nd labels add <id> delivered
+9. Deliver with comprehensive proof: CI results, coverage, AC verification table
 
 ### nd Commands
 
 - Claim the story: nd update <id> --status=in_progress
 - Breadcrumb notes (compaction-safe): nd update <id> --append-notes "COMPLETED: ... IN PROGRESS: ... NEXT: ..."
 - Structured progress notes: nd comments add <id> "..."
+- Mark delivered: nd labels add <id> delivered (YOU must do this, not the orchestrator)
 - IMPORTANT: developer does NOT close stories -- deliver for PM-Acceptor review
 - IMPORTANT: developer does NOT create bugs -- report them (see below)
 
