@@ -47,20 +47,15 @@ Each iteration, pick work in this order:
 
 **Epic-scoped queries**: When targeting a specific epic, scope all queries:
 ```bash
+nd ready --parent <epic-id> --json                        # Ready work in the epic
 nd children <epic-id> --json                              # All stories in the epic
 nd list --parent <epic-id> --status in_progress --json    # Filtered within epic
-nd list --parent <epic-id> --status open --json            # Ready-equivalent scoped to epic
 ```
 
-### nd flag reference (avoid hallucinating flags)
-
-`nd list` supports: `--parent`, `--status`, `--label`, `--type`, `--assignee`, `--priority`, `--sort`, `--limit`, `--all`, `--json`
-`nd ready` supports: `--assignee`, `--sort`, `--limit`, `--json`
-`nd children` supports: `--json`
-
-**`nd ready` does NOT support `--parent`, `--status`, or `--label`.**
-To get ready work scoped to an epic, use `nd list --parent <epic-id> --status open --json` instead.
-Do NOT invent flags by analogy -- run `nd <command> --help` if unsure.
+As of nd v0.7.0, `nd ready` supports the same filter flags as `nd list`:
+`--parent`, `--status`, `--label`, `--type`, `--assignee`, `--priority`,
+`--no-parent`, `--sort`, `--reverse`, `--limit`, date range filters, `--json`.
+Run `nd <command> --help` if unsure about available flags.
 
 ## Concurrency Limits (HARD RULE)
 

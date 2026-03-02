@@ -203,7 +203,7 @@ nd show <id>          # View a story
 nd list               # List stories (supports --parent, --status, --label filters)
 nd list --parent <id> # List stories under an epic/parent
 nd children <id>      # List children of an epic
-nd ready              # List ready stories (no --parent flag; use nd list --parent <id> --status open)
+nd ready              # List ready stories (supports same filters as nd list)
 nd search <query>     # Search stories
 nd blocked            # List blocked stories
 nd stats              # View statistics
