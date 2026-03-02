@@ -150,13 +150,32 @@ Or directly:
 pvg loop cancel
 ```
 
+## Worktree Cleanup (after developer agent completes)
+
+After merging a developer's worktree branch, clean up in ONE command:
+
+```bash
+git worktree remove --force .claude/worktrees/<agent-id> && git branch -D worktree-<agent-id>
+```
+
+**Always use `--force` and `-D`:**
+- `--force` because worktrees always have build artifacts (.pyc, __pycache__, .pytest_cache)
+- `-D` (not `-d`) because the branch is merged to HEAD but not to origin/main
+
+Do NOT use `git worktree remove` without `--force` or `git branch -d` without `-D`.
+These will always fail and waste tool calls.
+
+**nd labels are idempotent-ish:** `nd labels add` fails if the label already exists.
+If the developer already set `delivered`, don't set it again. Check first or ignore
+the error.
+
 ## Post-Compaction Recovery
 
 After context compaction, you lose track of running agents and their worktrees.
 Do NOT investigate old worktrees or try to continue partial work. Instead:
 
 1. Check `nd list --status in_progress --json` for stories that were being worked on
-2. Discard any stale worktrees: `git worktree list` then `git worktree remove <path>` for agent worktrees
+2. Discard any stale worktrees: `git worktree list` then `git worktree remove --force <path>` for agent worktrees
 3. Re-spawn fresh developer agents for in-progress stories -- they start clean from main
 4. Never spawn an agent whose cwd is inside another agent's worktree (causes nesting)
 
