@@ -73,6 +73,8 @@ Use judgment to apply it proactively; user can always remove it.
 - Add decision notes to stories: nd comments add <id> "DECISION: <rationale>"
 - List stories in epic: nd children <epic-id> --json
 - Filter by parent: nd list --parent <epic-id>
+- Ready work in epic: nd list --parent <epic-id> --status open --json
+  (nd ready does NOT support --parent; use nd list instead)
 - Verify structure: nd epic tree <epic-id>
 - Visualize dependency DAG: nd graph <epic-id>
 - Detect dependency cycles: nd dep cycles

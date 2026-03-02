@@ -18,7 +18,7 @@ pvg loop setup $ARGUMENTS
 ```
 
 If `$ARGUMENTS` is empty, ask the user:
-- "Run all ready work (`--all`) or target a specific epic (`--epic EPIC_ID`)?"
+- "Run all ready work (`--all`) or target a specific epic (provide the EPIC_ID)?"
 - "Max iterations? (default: 50, 0 for unlimited)"
 
 Verify activation succeeded before continuing.
@@ -45,12 +45,22 @@ Each iteration, pick work in this order:
    ```
    For each: spawn `paivot-graph:developer` agent to implement.
 
-**Epic-scoped queries**: When targeting a specific epic, scope all queries to that epic:
+**Epic-scoped queries**: When targeting a specific epic, scope all queries:
 ```bash
-nd children <epic-id> --json            # All stories in the epic
-nd list --parent <epic-id> --status in_progress --json  # Filter within epic
+nd children <epic-id> --json                              # All stories in the epic
+nd list --parent <epic-id> --status in_progress --json    # Filtered within epic
+nd list --parent <epic-id> --status open --json            # Ready-equivalent scoped to epic
 ```
-IMPORTANT: nd does NOT have an `--epic` flag. Use `--parent` or `nd children` instead.
+
+### nd flag reference (avoid hallucinating flags)
+
+`nd list` supports: `--parent`, `--status`, `--label`, `--type`, `--assignee`, `--priority`, `--sort`, `--limit`, `--all`, `--json`
+`nd ready` supports: `--assignee`, `--sort`, `--limit`, `--json`
+`nd children` supports: `--json`
+
+**`nd ready` does NOT support `--parent`, `--status`, or `--label`.**
+To get ready work scoped to an epic, use `nd list --parent <epic-id> --status open --json` instead.
+Do NOT invent flags by analogy -- run `nd <command> --help` if unsure.
 
 ## Concurrency Limits (HARD RULE)
 

@@ -202,10 +202,10 @@ docs/diagrams/                    # Mermaid diagram files
 ### nd (Read-Only)
 ```bash
 nd show <id>          # View a story
-nd list               # List stories
+nd list               # List stories (supports --parent, --status, --label filters)
 nd list --parent <id> # List stories under an epic/parent
 nd children <id>      # List children of an epic
-nd ready              # List ready stories
+nd ready              # List ready stories (no --parent flag; use nd list --parent <id> --status open)
 nd search <query>     # Search stories
 nd blocked            # List blocked stories
 nd graph              # View dependency graph
