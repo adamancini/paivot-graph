@@ -121,6 +121,28 @@ If an agent fails, re-spawn it with corrective guidance. Do not do its work.
 | PM-Acceptor | `paivot-graph:pm` | Stories with `delivered` label |
 | Developer | `paivot-graph:developer` | Ready or rejected stories |
 
+## Developer Spawning: Normal vs Hard-TDD
+
+Hard-TDD is **opt-in per story**. Before spawning a developer, check for the `hard-tdd` label:
+
+```bash
+nd show <id> --json | grep -q '"hard-tdd"'
+```
+
+**If `hard-tdd` label is ABSENT** (the default): spawn ONE developer agent in normal mode.
+The developer writes both implementation and tests in a single pass. This is the standard flow.
+
+**If `hard-tdd` label is PRESENT**: run the two-phase flow:
+1. RED phase: spawn developer with "RED PHASE" in the prompt (tests only)
+2. PM-Acceptor reviews tests
+3. GREEN phase: spawn developer with "GREEN PHASE" in the prompt (implementation only)
+4. PM-Acceptor reviews implementation
+
+**Do NOT default to hard-TDD.** The user's general TDD preference (writing tests alongside
+code) is satisfied by normal mode. Hard-TDD is a stricter discipline where tests and
+implementation are written by separate agent invocations with structural locks. It requires
+explicit opt-in via the label.
+
 ## Termination Conditions
 
 **The loop is permanent.** It runs across the ENTIRE backlog, not a single epic.
