@@ -43,6 +43,8 @@ Each iteration, pick work in this order:
    nd list --status in_progress --label delivered --json
    ```
    For each: spawn `paivot-graph:pm` agent to review and accept/reject.
+   **The PM-Acceptor closes the story itself** (`nd close --reason`). Do NOT
+   re-close stories after the PM-Acceptor finishes -- they are already closed.
    **After each acceptance**: the PM-Acceptor runs epic auto-close (see pm.md).
 
 2. **Developer for rejected stories** (fix before starting new work)
@@ -110,6 +112,8 @@ You are a dispatcher. You coordinate agents. You NEVER:
 - Skip agents to "save time"
 - Resolve merge conflicts yourself (spawn a developer -- conflict resolution requires code judgment)
 - Edit source files for any reason, including "cleanup" or "git maintenance"
+- Inspect agent worktree internals (cd into `.claude/worktrees/agent-*`, run git log, read files there)
+- Re-close stories that the PM-Acceptor already closed (it closes on acceptance -- you just read its output)
 
 If an agent fails, re-spawn it with corrective guidance. Do not do its work.
 
