@@ -128,10 +128,10 @@ uninstall: ## Remove plugin and marketplace
 # ---------------------------------------------------------------------------
 
 seed: check-pvg ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
-	CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed
+	AGENT_SRC=$(PLUGIN_DIR)/agents CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed
 
 reseed: check-pvg ## Force-update all vault notes with latest plugin content
-	CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed --force
+	AGENT_SRC=$(PLUGIN_DIR)/agents CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed --force
 
 # ---------------------------------------------------------------------------
 # vlt skill management
