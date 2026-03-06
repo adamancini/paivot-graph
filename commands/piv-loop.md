@@ -117,6 +117,26 @@ You are a dispatcher. You coordinate agents. You NEVER:
 
 If an agent fails, re-spawn it with corrective guidance. Do not do its work.
 
+## Infrastructure Context (MANDATORY before first developer spawn)
+
+Before spawning the first developer agent in a session, discover what infrastructure
+is available locally and include connection details in ALL developer agent prompts.
+
+**Discovery protocol:**
+1. `docker ps --format '{{.Names}} {{.Ports}}'` -- running containers
+2. Check for docker-compose files, .env files with connection strings
+3. Check project README/docs for infrastructure requirements
+
+**Include in developer prompts:**
+- List of running services with host:port
+- Database connection details
+- Required env vars with values (or instructions to obtain them)
+- Explicit instruction: "Infrastructure is running. Do NOT gate tests behind env
+  vars. Run integration tests directly against these services."
+
+Without this context, developers will reasonably gate tests behind env vars --
+creating dormant tests that satisfy no testing gate.
+
 ## Agent Types
 
 | Role | Agent Type | When |
@@ -199,18 +219,33 @@ These will always fail and waste tool calls.
 If the developer already set `delivered`, don't set it again. Check first or ignore
 the error.
 
+For bulk cleanup after context loss, use `pvg loop recover` instead of manual
+`git worktree remove` commands (see Post-Compaction Recovery below).
+
 ## Post-Compaction Recovery
 
 After context compaction, you lose track of running agents and their worktrees.
-Do NOT investigate old worktrees or try to continue partial work. Instead:
+Run recovery instead of doing manual cleanup:
 
-1. Check `nd list --status in_progress --json` for stories that were being worked on
-2. Discard any stale worktrees: `git worktree list` then `git worktree remove --force <path>` for agent worktrees
-3. Re-spawn fresh developer agents for in-progress stories -- they start clean from main
-4. Never spawn an agent whose cwd is inside another agent's worktree (causes nesting)
+```bash
+pvg loop recover
+```
 
-The agents' worktree isolation means partial uncommitted work is lost on compaction.
-This is acceptable -- re-doing work is cheaper than untangling nested worktrees.
+This command automatically:
+1. Reads the snapshot file (if one exists from a prior `pvg loop snapshot`)
+2. Removes all agent worktrees and their branches
+3. Resets orphaned in-progress stories to `open` in nd (delivered stories are preserved)
+4. Outputs a recovery summary showing what's ready, delivered, and needs attention
+
+If no snapshot exists, it still cleans orphan worktrees from `git worktree list`.
+
+**Before compaction (optional but recommended):** take a snapshot to preserve agent state:
+```bash
+pvg loop snapshot --agent STORY-a1b=developer --agent STORY-c3d=pm-acceptor
+```
+
+Re-doing work is always cheaper than untangling nested worktrees.
+Never spawn an agent whose cwd is inside another agent's worktree.
 
 ## Shell Usage
 

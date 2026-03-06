@@ -1,156 +1,245 @@
 ---
-description: Trigger a deliberate knowledge capture pass -- review the current session and save decisions, patterns, and debug insights to the appropriate vault tier (global or project-local)
+description: Capture knowledge from the current session to the vault with auto-tagging and link suggestions
 allowed-tools: ["Bash", "Read", "Grep", "Glob"]
 ---
 
 # Vault Capture
 
-Perform a deliberate knowledge capture pass for the current session. This command reviews what has happened in the conversation and creates/updates vault notes, routing each piece of knowledge to the correct tier.
+Capture knowledge from the current session to the appropriate vault. Auto-derives tags, validates domains, suggests related links, and triages to the correct folder.
 
-**Global vault:** `vlt vault="Claude"` (resolves path dynamically)
-**Project vault path:** `.vault/knowledge/` (relative to project root)
+## Step 1: Load Context
 
-## Steps
+Load the vault-knowledge skill to understand the controlled domain vocabulary and note template:
 
-1. **Load the vault-knowledge skill first** to understand vault interaction patterns and note formatting.
+```bash
+cat ~/workspace/paivot/paivot-graph/skills/vault-knowledge/SKILL.md | head -100
+```
 
-2. **Review the current session** for capturable knowledge. Look for:
-   - Architectural decisions (chose X over Y, established a convention)
-   - Debugging breakthroughs (non-obvious bugs solved, sharp edges found)
-   - Pattern discoveries (reusable solutions, anti-patterns identified)
-   - Project state changes (features completed, integrations established)
+Detect the current project:
 
-3. **Detect the current project** from git remote or directory name.
+```bash
+project=$(git remote get-url origin 2>/dev/null | xargs basename -s .git || basename "$(pwd)")
+```
 
-4. **Check existing vault knowledge** for this project:
+## Step 2: Review Session for Capturable Knowledge
 
-   Read the project note and all linked knowledge in one call:
-   ```bash
-   vlt vault="Claude" read file="<project-name>" follow
-   ```
-   This returns the project note plus every note it links to (decisions, patterns, debug insights). Use it to avoid duplicating knowledge that already exists.
+Scan the conversation for:
 
-5. **For each piece of capturable knowledge**, decide which tier it belongs to:
+- **Decisions**: "chose X", "decided to", "went with", "trade-off"
+- **Patterns**: "this approach", "reusable", "pattern", "anti-pattern"
+- **Debug insights**: "root cause", "the issue was", "fixed by", "gotcha"
+- **Concepts**: "learned that", "turns out", "works by"
 
-   ### Universal knowledge (applies to ANY project using this stack/methodology)
-   Examples: methodology refinements, cross-project patterns, tool insights, convention updates.
+For each finding, extract:
+1. Title (concise, searchable)
+2. Type (decision|pattern|debug|concept)
+3. Summary (1-2 sentences)
+4. Content (the actual knowledge)
+5. Stack (technologies involved)
+6. Domain (from controlled vocabulary)
 
-   Route to global vault `_inbox/` with `scope: system`:
-   ```bash
-   vlt vault="Claude" create name="<Note Title>" path="_inbox/<Note Title>.md" content="---
-   type: <decision|pattern|debug>
-   scope: system
-   project: <project>
-   status: active
-   created: <YYYY-MM-DD>
-   ---
+## Step 3: Validate Domain
 
-   # <Note Title>
+Check domain against controlled vocabulary:
 
-   <content>" silent
-   ```
+```
+ai-training, ai-inference, ai-agents, ai-nlp
+dev-tools-cli, dev-tools-testing, dev-tools-workflow, dev-tools-knowledge
+security-gateway, security-hardening, security-compliance
+finance-quant, finance-fintech
+frontend-ui, frontend-performance
+calendar-sync
+```
 
-   ### Project-specific knowledge (only relevant to THIS project)
-   Examples: project architecture decisions, project-specific patterns, local debug insights, project conventions.
+If domain doesn't match, suggest closest match or ask user to pick.
 
-   Route to `.vault/knowledge/` with `scope: project`:
-   ```bash
-   vlt vault=".vault/knowledge" create name="<Note Title>" path="<subfolder>/<Note Title>.md" content="---
-   type: <decision|pattern|debug|convention>
-   scope: project
-   project: <project>
-   status: active
-   created: <YYYY-MM-DD>
-   ---
+## Step 4: Determine Scope
 
-   # <Note Title>
+Ask: "Would this knowledge help someone on a DIFFERENT project with a DIFFERENT codebase?"
 
-   <content>" silent
-   ```
+- **Yes** -> Global vault, triage to folder based on type
+- **No** -> Project vault `.vault/knowledge/<type>/`
 
-   Subfolder mapping: decisions/ for decisions, patterns/ for patterns, debug/ for debug insights, conventions/ for conventions.
+## Step 5: Suggest Related Links
 
-   **If `.vault/` does not exist** (nd not initialized): fall back to the global vault with a `scope: project` tag so it can be moved later. Tell the user: "No .vault/ directory found. Saved to global vault with scope: project. Initialize nd to enable project-local storage."
+Before creating, search for related notes:
 
-6. **Update the project index note** if it exists:
+```bash
+vlt vault="Claude" search query="<keywords from title>" --json
+```
 
-   ```bash
-   vlt vault="Claude" append file="<Project>" content="
+Present top 5 matches:
+```
+Related notes you may want to link:
+1. [[Existing Note A]] - similar pattern
+2. [[Existing Note B]] - same stack
+3. [[Project X]] - used this approach
+```
 
-   ## Session update (<date>)
-   - <what was accomplished>
-   - New notes: [[<Note 1>]], [[<Note 2>]]"
-   ```
+ALWAYS include at least the project note as a related link.
 
-   If no project note exists, create one:
-   ```bash
-   vlt vault="Claude" create name="<Project>" path="projects/<Project>.md" content="..." silent
-   ```
+## Step 6: Derive Tags
 
-   Also create/update `.vault/knowledge/README.md` if project-local notes were created:
-   ```bash
-   vlt vault=".vault/knowledge" write file="README" content="# Project Knowledge
+Auto-derive tags based on type + domain:
 
-   Local knowledge for <project>. See also the global vault for cross-project knowledge.
+| Domain | Tag |
+|--------|-----|
+| ai-training | `#ai/training` |
+| ai-inference | `#ai/inference` |
+| ai-agents | `#ai/agents` |
+| ai-nlp | `#ai/nlp` |
+| dev-tools-cli | `#dev-tools/cli` |
+| dev-tools-testing | `#dev-tools/testing` |
+| dev-tools-workflow | `#dev-tools/workflow` |
+| dev-tools-knowledge | `#dev-tools/knowledge` |
+| security-gateway | `#security/gateway` |
+| security-hardening | `#security/hardening` |
+| security-compliance | `#security/compliance` |
+| finance-quant | `#finance/quant` |
+| finance-fintech | `#finance/fintech` |
+| frontend-ui | `#frontend/ui` |
+| frontend-performance | `#frontend/performance` |
+| calendar-sync | `#calendar/sync` |
 
-   ## Contents
-   - decisions/: N notes
-   - patterns/: N notes
-   - debug/: N notes
-   - conventions/: N notes
+## Step 7: Create Note
 
-   Last updated: <YYYY-MM-DD>"
-   ```
+Build the note using the template:
 
-7. **Triage inbox notes** to their proper folders (vlt updates wikilinks automatically):
-   ```bash
-   vlt vault="Claude" move path="_inbox/<Note>.md" to="decisions/<Note>.md"
-   ```
+```markdown
+---
+type: <type>
+project: <project>
+stack: [<stack>]
+domain: <domain>
+status: active
+confidence: <high|medium|low>
+created: YYYY-MM-DD
+---
 
-8. **Report what was captured** in a summary:
+# <Title>
 
-   ```
-   ## Vault Capture Summary
+<Summary - 1-2 sentences>
 
-   Project: <name>
-   Date: <today>
+## Content
 
-   ### Captured to Global Vault
-   - [decision] <Note Title> -> decisions/
-   - [pattern] <Note Title> -> patterns/
+<Main body>
 
-   ### Captured to Project Vault (.vault/knowledge/)
-   - [decision] <Note Title> -> .vault/knowledge/decisions/
-   - [debug] <Note Title> -> .vault/knowledge/debug/
+## Related
 
-   ### Updated
-   - projects/<Project>.md (session update)
-   - .vault/knowledge/README.md
+- [[<Project>]]
+- [[<Related Note 1>]]
 
-   ### Skipped (already exists)
-   - <Note that was already in vault>
+## Tags
 
-   Total: N new notes (G global, P project-local), M updated notes
-   ```
+<#derived-tag-1> <#derived-tag-2>
+```
 
-## If vault directory is missing
+Create in `_inbox/` first:
 
-If the vault path does not exist:
-1. Report that the vault directory was not found
-2. Offer to output the notes as markdown that the user can manually add to their vault
+```bash
+vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="<full-content>" silent timestamps
+```
 
-## If nothing to capture
+## Step 8: Triage Immediately
 
-If the session has no significant decisions, patterns, or debug insights:
+Move to the correct folder based on type:
+
+```bash
+vlt vault="Claude" move path="_inbox/<Title>.md" to="<type>s/<Title>.md"
+```
+
+Folder mapping:
+- decision -> decisions/
+- pattern -> patterns/
+- debug -> debug/
+- concept -> concepts/
+- convention -> conventions/
+
+## Step 9: Update Project Note
+
+Append a session update to the project note:
+
+```bash
+vlt vault="Claude" append file="<Project>" content="
+
+## Session $(date +%Y-%m-%d)
+- <brief summary of what was done>
+- Captured: [[<Note 1>]], [[<Note 2>]]"
+```
+
+If project note doesn't exist, create it:
+
+```bash
+vlt vault="Claude" create name="<Project>" path="projects/<Project>.md" content="---
+type: project
+project: <project>
+stack: [<detected-stack>]
+domain: <project-domain>
+status: active
+confidence: high
+created: $(date +%Y-%m-%d)
+---
+
+# <Project>
+
+<Brief description>
+
+## Related
+
+- [[<Note 1>]]
+
+## Tags
+
+#<project-domain-tag>" silent timestamps
+```
+
+## Step 10: Report Summary
+
 ```
 ## Vault Capture Summary
 
 Project: <name>
-No new knowledge to capture from this session.
+Date: <today>
 
-Tip: Knowledge capture is most valuable after:
-- Making architectural decisions
-- Solving non-obvious bugs
-- Discovering reusable patterns
-- Completing significant features
+### Captured
+- [decision] [[Note Title]] -> decisions/ (#domain-tag)
+- [pattern] [[Note Title]] -> patterns/ (#domain-tag)
+
+### Linked To
+- [[Project]]
+- [[Related Note A]]
+- [[Related Note B]]
+
+### Skipped
+- <insight> (already exists as [[Existing Note]])
+
+Total: N new notes, M links added
 ```
+
+## Validation Checklist
+
+Before completing, verify:
+
+- [ ] All domains are from controlled vocabulary
+- [ ] Each note has at least one wikilink in "Related"
+- [ ] Tags are derived from domain, not manually added
+- [ ] Note is triaged to correct folder (not left in _inbox)
+- [ ] Project note is updated with session summary
+
+## If Nothing to Capture
+
+```
+## Vault Capture Summary
+
+Project: <name>
+No new cross-project knowledge to capture.
+
+Session-specific details logged to project execution (not vault-worthy).
+```
+
+## If Vault Directory is Missing
+
+If `vlt vault="Claude"` fails:
+1. Report that the vault path was not found
+2. Output notes as markdown for manual addition
+3. Suggest running `vlt vaults` to discover vault paths

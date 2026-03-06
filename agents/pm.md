@@ -43,6 +43,12 @@ If story has `hard-tdd` label, adjust review based on phase:
 1. Evidence Check: are CI results, coverage, test output present?
 2. Outcome Alignment: does the implementation match ACs precisely?
 3. Test Quality: integration tests with no mocks? Claims backed by proof?
+   **Execution count verification (CRITICAL):** Verify integration tests ACTUALLY
+   EXECUTED -- not just existed. Check for "skipped", "deselected", "xfail" in test
+   output. If ALL integration tests were skipped (even if they "exist"), reject
+   immediately. "0 failures with 0 executions" is NOT passing. Tests gated behind
+   env vars (`@pytest.mark.skipif(not os.environ.get(...))`) are dormant code, not
+   integration tests -- reject if found.
 4. Code Quality Spot-Check: wiring verified? No dead code?
 5. Discovered Issues Extraction: anything found during implementation? (see Reporting Bugs below)
 

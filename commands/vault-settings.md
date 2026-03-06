@@ -59,6 +59,12 @@ workflow.custom_statuses: delivered,review,rejected
 # When enabled, Architect maintains workspace.dsl and Architecture Contract
 # Options: true, false
 architecture.c4: false
+
+# Whether to persist execution loop state across sessions
+# When false (default), loop state is cleared when session exits, even if work remains
+# When true, loop can resume from where it left off in the next session
+# Options: true, false
+loop.persist_across_sessions: false
 ```
 
 ## Step 2: Present Current Configuration
@@ -81,6 +87,7 @@ Show the user the current state:
 | workflow.exit_rules      | ...       | Escape rules for blocked/rejected statuses        |
 | workflow.custom_statuses | ...       | Custom statuses registered with nd for display    |
 | architecture.c4          | false     | C4 model + Architecture Contract alongside ARCHITECTURE.md |
+| loop.persist_across_sessions | false | Whether execution loop state persists across sessions |
 
 Settings file: .vault/knowledge/.settings.yaml
 ```
@@ -129,6 +136,13 @@ pvg settings proposal_expiry_days=14
 - `false` (disable):
   1. Report: "C4 architecture model disabled. Existing workspace.dsl is preserved but not maintained."
   2. No files are deleted.
+
+**If `loop.persist_across_sessions` was changed:**
+- `true` (enable):
+  1. Report: "Loop state persistence enabled. The execution loop will resume from where it left off in the next session."
+- `false` (disable):
+  1. Report: "Loop state persistence disabled. The execution loop will clear its state on session exit."
+  2. No side effects -- takes effect on next loop stop.
 
 ## Step 5: Report
 

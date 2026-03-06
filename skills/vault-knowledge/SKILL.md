@@ -1,238 +1,288 @@
 ---
 name: vault-knowledge
 description: This skill should be used when working on any project to understand how to effectively interact with the Obsidian knowledge vault. It teaches when to capture knowledge, what to capture, how to format vault notes, and how to search effectively. Use when you need to "save to vault", "update vault", "capture a decision", "record a pattern", "log a debug insight", or when starting/ending a significant work session.
-version: 0.4.0
+version: 0.5.0
 ---
 
-# Vault Knowledge (Vault-Backed)
+# Vault Knowledge
 
-The Obsidian vault ("Claude") lives on disk. Interact with it using `vlt` (the fast vault CLI) via Bash, or directly using Read, Write, Grep, and Glob tools. Prefer `vlt` for vault-aware operations (search, create, move with wikilink repair, backlinks, tags). Use Read/Write/Grep/Glob when you need Claude Code tool integration or vlt is unavailable.
-
-**Vault path:** Resolve dynamically with `vlt vault="Claude" dir` (never hardcode).
-
-Read the full skill content from the vault (via Bash):
-
-    vlt vault="Claude" read file="Vault Knowledge Skill"
-
-The vault version is authoritative. Follow it completely.
-
-If the vault is unavailable, use these minimal instructions:
-
-## Three-Tier Knowledge Model
-
-Knowledge lives in three tiers with different governance rules:
-
-### Tier 1: System Vault (global Obsidian "Claude")
-
-Shared across ALL projects. Changes require user approval.
-
-| Folder        | Scope  | Contains                        |
-|---------------|--------|---------------------------------|
-| methodology/  | system | Agent prompts                   |
-| conventions/  | system | Operating mode, checklists, skill |
-| decisions/    | system | Cross-project decisions         |
-| patterns/     | system | Cross-project patterns          |
-| debug/        | system | Cross-project debug insights    |
-| concepts/     | system | Language/framework knowledge    |
-| projects/     | system | Project index notes             |
-| people/       | system | Team preferences                |
-| _inbox/       | system | Unsorted capture (triage later) |
-
-**Governance:** System notes are NEVER modified directly during a session. Changes go through a proposal workflow -- `/vault-evolve` creates proposals, `/vault-triage` reviews and applies them.
-
-### Tier 2: Project Vault (`.vault/knowledge/` in each repo)
-
-Scoped to a single project. Changes apply directly, no approval needed.
-
-```
-.vault/knowledge/
-  decisions/      # Project-specific architectural decisions
-  patterns/       # Project-specific reusable patterns
-  debug/          # Project-specific debug insights
-  conventions/    # Project-specific conventions (override or supplement system)
-  changelog.md    # Log of all local knowledge changes
-  README.md       # Summary of local knowledge
-```
-
-**Governance:** Apply changes directly. Low risk -- only affects this project.
-
-### Tier 3: Session Memory (`~/.claude/projects/*/memory/`)
-
-Ephemeral, per-session. Already exists in Claude Code. No changes needed.
-
-## Scope Convention
-
-Every vault note has a `scope:` frontmatter property:
-
-- `scope: system` -- lives in the global vault, requires approval to change
-- `scope: project` -- lives in `.vault/knowledge/`, can be changed directly
-- **No `scope:` property** -- defaults to `scope: system` (conservative, protects existing notes)
-
-## Proposal Workflow
-
-When `/vault-evolve` identifies an improvement to a system-scoped note:
-
-1. A **proposal note** is created in `_inbox/` with `type: proposal`, `status: pending`
-2. The proposal includes: motivation, before/after diff, full snapshot for rollback
-3. The user runs `/vault-triage` to review proposals
-4. Each proposal can be: accepted (applied + moved to decisions/), rejected (kept as record in decisions/), or modified
-5. Accepted proposals append to the target note's `## Changelog` section
-
-## Promotion Workflow (project -> system)
-
-When project-local knowledge proves universally useful, it can be promoted to the system vault:
-
-1. `/vault-evolve` reviews project notes and identifies promotion candidates
-2. Criteria: validated across sessions, applies broadly to the stack/domain, improves cross-project consistency
-3. A **promotion proposal** is created in `_inbox/` with `type: proposal`, `promotion_from: project`
-4. `/vault-triage` reviews the promotion -- user accepts or rejects
-5. On acceptance: note is copied to the system vault's target folder; the project-local copy remains untouched
-
-Promotions are rare. Most project knowledge should stay local. Only promote when there's clear cross-project value.
-
-## Actionable Knowledge Tags
-
-Retro insights and session learnings that need to be incorporated into upcoming work use the `actionable:` frontmatter property:
-
-| Value          | Meaning                                                    |
-|----------------|------------------------------------------------------------|
-| `pending`      | Written by retro agent, not yet consumed by Sr PM          |
-| `incorporated` | Sr PM has read and integrated into upcoming stories         |
-
-### How it works
-
-1. **Retro agent** writes insights to `.vault/knowledge/` (decisions/, patterns/, debug/, conventions/) with `actionable: pending` in frontmatter
-2. **Sr PM agent** searches for `actionable: pending` notes, reads them, incorporates relevant feedback into upcoming stories
-3. **Sr PM agent** updates the tag to `actionable: incorporated` after consuming the insight
-4. `/vault-status` reports the count of pending actionable notes
-
-This replaces the `.learnings/` directory pattern. Knowledge goes directly into the proper vault subfolder with appropriate categorization, making it searchable and linkable from day one.
-
-## Emergency Edits
-
-The scope guard blocks Edit and Write tool calls to protected vault directories. However, **vlt commands via Bash are allowed through** because vlt is the intended mechanism for the proposal workflow.
-
-If a system note has a critical issue that must be fixed immediately (e.g., a typo breaking every session), you can use vlt directly:
-
-```bash
-vlt vault="Claude" read file="<Note Title>"          # verify the issue
-vlt vault="Claude" patch file="<Note Title>" section="<Section>" content="<fixed content>"
-```
-
-This bypasses the proposal workflow. Use it sparingly -- the proposal workflow exists to ensure cross-project awareness. After an emergency edit, append to the note's `## Changelog`:
-
-```bash
-vlt vault="Claude" append file="<Note Title>" content="\n- <YYYY-MM-DD>: Emergency fix -- <what was changed and why> (bypassed proposal workflow)"
-```
-
-## Fallback: Core Vault Interaction Patterns
-
-The Obsidian vault ("Claude") is your persistent knowledge layer. It survives across sessions, projects, and context compactions.
+The Obsidian vault ("Claude") is your persistent knowledge layer. Interact with it using `vlt` (the fast vault CLI) via Bash. Prefer `vlt` for vault-aware operations (search, create, move with wikilink repair, backlinks, tags).
 
 **Vault path:** Resolve dynamically with `vlt vault="Claude" dir` (never hardcode).
 
-### Vault Structure
+## Two-Tier Knowledge Model
+
+### Tier 1: Global Vault ("Claude")
+
+Shared across ALL projects. Cross-project knowledge only.
+
+| Folder        | Contains                        | Auto-Tag           |
+|---------------|---------------------------------|--------------------|
+| methodology/  | Agent prompts, Paivot workflow  | `#dev-tools/workflow` |
+| conventions/  | Operating mode, checklists      | `#dev-tools/workflow` |
+| decisions/    | Cross-project decisions         | Domain-based       |
+| patterns/     | Cross-project patterns          | Domain-based       |
+| debug/        | Cross-project debug insights    | Stack-based        |
+| concepts/     | Language/framework knowledge    | Stack-based        |
+| projects/     | Project index notes (not logs!) | Project domain     |
+| people/       | Team preferences                | `#dev-tools/workflow` |
+| _inbox/       | Unsorted capture                | (triage required)  |
+
+**Governance:** Changes go through `/vault-capture` which auto-triages to the correct folder.
+
+### Tier 2: Project Vault (`.vault/` in each repo)
+
+Scoped to a single project. Changes apply directly.
 
 ```
-methodology/  # Agent prompts, paivot methodology
-conventions/  # Working conventions (testing, python, communication)
-decisions/    # Architectural and design decisions with rationale
-patterns/     # Reusable solutions and idioms
-debug/        # Problems and their resolutions
-concepts/     # Language, framework, and tool knowledge
-projects/     # One index note per project
-people/       # User preferences and team conventions
-_inbox/       # Unsorted capture, triage into proper folders
-_templates/   # Note templates
+.vault/
+  knowledge/     # Timeless project knowledge
+    decisions/   # Project-specific decisions
+    patterns/    # Project-specific patterns
+    debug/       # Project-specific debug insights
+  sessions/      # Execution logs (ephemeral)
+    YYYY-MM-DD.md
+  README.md      # Project knowledge index
 ```
 
-### When to Capture
+**Separation:** `knowledge/` is for timeless insights. `sessions/` is for execution logs that age out.
 
-- **Decisions**: chose X over Y, established a convention, made a trade-off
-- **Debug insights**: solved a non-obvious bug, found a sharp edge
-- **Patterns**: found a reusable solution, identified an anti-pattern
-- **Session boundaries**: start (read), before compaction (save), end (update)
+## Controlled Domain Vocabulary
 
-### How to Read
+Use ONLY these domain values in frontmatter:
 
-Preferred (via Bash):
+| Domain | Description | Auto-Tag |
+|--------|-------------|----------|
+| `ai-training` | ML model training, fine-tuning, optimization | `#ai/training` |
+| `ai-inference` | Model inference, reasoning, neuro-symbolic | `#ai/inference` |
+| `ai-agents` | Agent orchestration, multi-agent systems | `#ai/agents` |
+| `ai-nlp` | Natural language processing, NER, classification | `#ai/nlp` |
+| `dev-tools-cli` | CLI tools, build systems, package managers | `#dev-tools/cli` |
+| `dev-tools-testing` | Testing frameworks, test patterns | `#dev-tools/testing` |
+| `dev-tools-workflow` | Development workflow, methodology | `#dev-tools/workflow` |
+| `dev-tools-knowledge` | Knowledge management, vault patterns | `#dev-tools/knowledge` |
+| `security-gateway` | API gateways, middleware, auth | `#security/gateway` |
+| `security-hardening` | Security fixes, vulnerability remediation | `#security/hardening` |
+| `security-compliance` | Regulatory compliance, audit | `#security/compliance` |
+| `finance-quant` | Quantitative finance, backtesting | `#finance/quant` |
+| `finance-fintech` | Fintech applications, payments | `#finance/fintech` |
+| `frontend-ui` | UI components, design systems | `#frontend/ui` |
+| `frontend-performance` | Web performance, optimization | `#frontend/performance` |
+| `calendar-sync` | Calendar federation, scheduling | `#calendar/sync` |
 
-    vlt vault="Claude" read file="<Note Title>"
+## Auto-Tagging Rules
 
-To read a note plus all notes it links to (graph-aware, one call):
+Tags are derived from folder + domain. Never manually add tags to frontmatter.
 
-    vlt vault="Claude" read file="<Note Title>" follow
+| Folder | Base Tag | Plus Domain Tag |
+|--------|----------|-----------------|
+| methodology/ | `#dev-tools/workflow` | - |
+| conventions/ | `#dev-tools/workflow` | - |
+| decisions/ | - | `#<domain>` (from domain field) |
+| patterns/ | - | `#<domain>` (from domain field) |
+| debug/ | `#dev-tools/cli` | `#<stack>` if relevant |
+| concepts/ | - | `#ai/<subtype>` based on stack |
+| projects/ | - | `#<domain>` (from domain field) |
 
-To read a note plus all notes that link TO it:
+Tags appear in the note body as a `## Tags` section at the bottom, not in frontmatter.
 
-    vlt vault="Claude" read file="<Note Title>" backlinks
+## Note Template
 
-Use `follow` when you need related context (e.g., a project note that links to its decisions and patterns). Use `backlinks` when you need to understand what depends on a note.
+Every note MUST follow this structure:
 
-Fallback (Read tool -- resolve vault path first with `vlt vault="Claude" dir`):
+```markdown
+---
+type: <pattern|debug|decision|concept|convention|methodology>
+project: <project-name-or-general>
+stack: [<list-of-technologies>]
+domain: <from-controlled-vocabulary>
+status: active
+confidence: high|medium|low
+created: YYYY-MM-DD
+---
 
-    Read: <vault-path>/<folder>/<Note Title>.md
+# Title
 
-### How to Search
+One-line summary of what this note captures.
 
-Preferred (via Bash -- vault-aware, searches titles and content):
+## Context (optional)
 
-    vlt vault="Claude" search query="<term>"
+Why this matters, when it applies.
 
-Fallback (Grep tool -- resolve vault path first with `vlt vault="Claude" dir`):
+## Content
 
-    Grep: pattern="<term>" path="<vault-path>"
+Main body - the actual knowledge.
 
-### How to Create Notes
+## Related
 
-**First decide the scope:**
+- [[Link to related note 1]]
+- [[Link to related note 2]]
 
-- Is this knowledge universal (applies to any project)? -> Global vault `_inbox/`, `scope: system`
-- Is this knowledge project-specific (only relevant here)? -> `.vault/knowledge/`, `scope: project`
+## Tags
 
-**Global vault (system scope):**
+#auto-derived-tag #another-tag
+```
 
-    vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="---\ntype: decision\nscope: system\nproject: <project>\nstatus: active\ncreated: <YYYY-MM-DD>\n---\n\n# <Title>\n\n<content>" silent
+### Required Fields
 
-**Project vault (project scope):**
+- **type**: pattern, debug, decision, concept, convention, methodology
+- **project**: Project name or "general" for cross-project
+- **domain**: MUST be from controlled vocabulary above
+- **status**: active, superseded, archived
+- **confidence**: high (verified), medium (tested once), low (hypothesis)
+- **created**: ISO date
 
-    mkdir -p .vault/knowledge/decisions
-    Write: .vault/knowledge/decisions/<Title>.md
+### Required Sections
 
-Fallback (Write tool -- resolve vault path first with `vlt vault="Claude" dir`):
+- **Summary**: First paragraph after title
+- **Related**: At least ONE wikilink to connect the knowledge graph
+- **Tags**: Auto-derived, placed at bottom
 
-    Write: <vault-path>/_inbox/<Title>.md
+## When to Capture
 
-Every note needs frontmatter: type, scope, project, status, created.
+| Trigger | Type | Folder |
+|---------|------|--------|
+| Chose X over Y | decision | decisions/ |
+| Found reusable solution | pattern | patterns/ |
+| Solved non-obvious bug | debug | debug/ |
+| Learned framework gotcha | concept | concepts/ |
+| Established team rule | convention | conventions/ |
+| Session starting | (read) | projects/ + linked notes |
+| Session ending | (update) | projects/ |
 
-### How to Append to Notes
+## How to Create Notes
 
-Preferred (via Bash):
+### Step 1: Determine if Cross-Project or Project-Specific
 
-    vlt vault="Claude" append file="<Note Title>" content="<text to append>"
+Ask: "Would this help someone working on a DIFFERENT project?"
 
-Fallback: Read the note with Read tool, then Write it back with additions, or use Edit tool.
+- **Yes** -> Global vault
+- **No** -> Project vault `.vault/knowledge/`
 
-### How to Move/Triage Notes
+### Step 2: Create with vlt
 
-Preferred (via Bash -- updates all wikilinks across the vault):
+```bash
+vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="---
+type: <type>
+project: <project>
+stack: [<stack>]
+domain: <from-vocabulary>
+status: active
+confidence: <level>
+created: $(date +%Y-%m-%d)
+---
 
-    vlt vault="Claude" move path="_inbox/<Note>.md" to="decisions/<Note>.md"
+# <Title>
 
-Fallback (Bash mv -- wikilinks will NOT be updated; resolve vault path first with `vlt vault="Claude" dir`):
+<one-line summary>
 
-    mv "<vault-path>/_inbox/<Note>.md" "<vault-path>/decisions/<Note>.md"
+## Content
 
-### How to Find Related Notes
+<main content>
 
-    vlt vault="Claude" backlinks file="<Note Title>"
-    vlt vault="Claude" links file="<Note Title>"
-    vlt vault="Claude" tags counts
+## Related
 
-### Frontmatter Requirements
+- [[<related note>]]
+" silent
+```
 
-Every note MUST have: type, scope, project, status, created. Optional: stack, domain, confidence.
+### Step 3: Triage Immediately
 
-### The Rule
+Don't leave notes in `_inbox/`. Move to correct folder:
 
-Knowledge not captured is knowledge rediscovered at cost. Capture as you go, not at the end.
+```bash
+vlt vault="Claude" move path="_inbox/<Title>.md" to="<folder>/<Title>.md"
+```
+
+### Step 4: Verify Links
+
+Ensure at least one wikilink exists. If creating a new concept, link to related concepts or the project note.
+
+## How to Read
+
+```bash
+# Single note
+vlt vault="Claude" read file="<Note Title>"
+
+# Note + all linked notes (graph traversal)
+vlt vault="Claude" read file="<Note Title>" follow
+
+# Note + all notes that link TO it
+vlt vault="Claude" read file="<Note Title>" backlinks
+```
+
+## How to Search
+
+```bash
+# Text search
+vlt vault="Claude" search query="<term>"
+
+# By domain
+vlt vault="Claude" search query="domain: ai-agents"
+
+# By project
+vlt vault="Claude" search query="project: reader"
+```
+
+## How to Update
+
+```bash
+# Append to note
+vlt vault="Claude" append file="<Note Title>" content="<new content>"
+
+# Replace a section
+vlt vault="Claude" patch file="<Note Title>" heading="## Section" content="<new section>"
+
+# Set property
+vlt vault="Claude" property:set file="<Note Title>" name="status" value="superseded"
+```
+
+## Session Workflow
+
+### Session Start
+
+1. Detect project from git remote or directory
+2. Read project note + follow links:
+   ```bash
+   vlt vault="Claude" read file="<Project>" follow
+   ```
+3. Check for project-specific knowledge in `.vault/knowledge/`
+
+### Session End
+
+1. Run `/vault-capture` to save new knowledge
+2. Update project note with session summary
+3. Check `_inbox/` size - warn if > 5 notes
+
+### Pre-Compact
+
+Warn if vault needs attention:
+```bash
+inbox_count=$(vlt vault="Claude" files folder="_inbox" --total)
+orphans=$(vlt vault="Claude" orphans --json | jq length)
+if [ "$inbox_count" -gt 5 ] || [ "$orphans" -gt 10 ]; then
+  echo "Vault needs attention: $inbox_count in inbox, $orphans orphans"
+fi
+```
+
+## Project Notes Are Indexes, Not Logs
+
+The project note in `projects/` should be:
+- A summary of the project (stack, domain, purpose)
+- Links to key decisions, patterns, and concepts
+- Brief session updates (1-2 lines each)
+
+NOT:
+- Full execution logs
+- Story-by-story completion records
+- Verbose session transcripts
+
+Put execution details in `.vault/sessions/YYYY-MM-DD.md` if needed for audit trail.
+
+## The Rules
+
+1. **Every note needs a link** - No orphans. Knowledge is a graph.
+2. **Use controlled domains** - No ad-hoc domain values.
+3. **Tags go in body** - Not frontmatter (Obsidian limitation).
+4. **Triage immediately** - Don't let `_inbox/` accumulate.
+5. **Capture as you go** - Not at the end. Memory decays.

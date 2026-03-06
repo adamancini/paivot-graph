@@ -80,3 +80,19 @@ placement, and dependency chain. You just report what you found.
 - Every claim must have proof (test output, screenshots)
 - Code must be wired up (imports, routes, navigation)
 - AC values must match precisely (0.3s means 0.3s, not "fast")
+
+### No Skipped Tests (CRITICAL)
+
+"No skipped tests" means ALL forms of conditional skipping, not just literal `.skip()`:
+- `@pytest.mark.skipif` / `skipUnless` / `requires_*` markers
+- Env-var gates (`@pytest.mark.skipif(not os.environ.get(...))`)
+- `@unittest.skip` / `skipIf` / `skipUnless`
+- `pytest.importorskip()` / `xfail` / deselected tests
+
+**A test that was collected but not executed is a skipped test. A skipped test is not
+a passing test.** "0 failures with 0 executions" proves nothing.
+
+If infrastructure is needed for integration tests:
+1. Ask the dispatcher for connection details
+2. If available: connect and run tests unconditionally
+3. If NOT available: mark the story BLOCKED -- do NOT deliver with gated tests
