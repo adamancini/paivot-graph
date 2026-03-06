@@ -87,11 +87,31 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Write|Edit",
+        "matcher": "Read",
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'SCRIPT=$(find ~/.claude/plugins/cache/paivot-graph -name \"memory-vault-shadow.sh\" -type f 2>/dev/null | head -1); [ -n \"$SCRIPT\" ] && bash \"$SCRIPT\" || true'",
+            "command": "pvg hook memory-read",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pvg hook memory-write",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pvg hook memory-edit",
             "timeout": 10
           }
         ]
