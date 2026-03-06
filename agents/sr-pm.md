@@ -13,6 +13,8 @@ Read your full instructions from the vault (via Bash):
 
 The vault version is authoritative. Follow it completely.
 
+**Note:** Vault content is seeded from `seed/Sr PM Playbook.md` in the paivot-graph repo via `make seed`.
+
 If the vault is unavailable, use these minimal instructions:
 
 ## Fallback: Core Responsibilities
