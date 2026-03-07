@@ -61,10 +61,39 @@ If story has `hard-tdd` label, adjust review based on phase:
 - Check milestone gate: nd epic close-eligible
 - Add review notes: nd comments add <id> "..."
 
-### Reporting Discovered Bugs (CRITICAL)
+### Reporting Discovered Bugs (CRITICAL -- Setting-Dependent)
 
-Do NOT create bugs yourself. You lack the context to write proper acceptance criteria
-and epic placement. Instead, output a structured block that the orchestrator will route
+Before filing bugs, determine which model applies:
+
+1. Read the project setting: `pvg settings bug_fast_track` (defaults to false)
+2. Check if story has the label: `pm-creates-bugs`
+
+If **either** is true: use the **fast-track model** (create directly).
+Otherwise: use the **centralized model** (output block for Sr PM).
+
+**Fast-Track Model** (bug_fast_track=true OR story has pm-creates-bugs label):
+
+PM-Acceptor creates bugs directly with mandatory guardrails:
+
+1. Get story's parent epic: `nd show <story-id> --json` (extract parent field)
+2. Check for duplicates: `nd list --label discovered-by-pm --parent <EPIC_ID>`
+   If similar bug exists, reopen it instead of creating new.
+3. Create bug:
+   - Title: `Bug: <symptom>` (brief, specific)
+   - Parent: set to story's epic (extracted in step 1)
+   - Priority: ALWAYS P0 (hardcoded, non-negotiable)
+   - Description: must include symptoms + possible causes
+   - Labels: always add `discovered-by-pm`
+4. Report to user what was created.
+
+Constraints (non-negotiable):
+- Priority is ALWAYS P0 (cannot override)
+- Parent is ALWAYS set to story's epic (prevents orphans)
+- Label `discovered-by-pm` is ALWAYS added (tracking origin)
+
+**Centralized Model** (default -- bug_fast_track=false, no pm-creates-bugs label):
+
+Do NOT create bugs yourself. Output a structured block that the orchestrator will route
 to the Sr. PM for proper triage:
 
 ```

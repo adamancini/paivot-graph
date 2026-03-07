@@ -44,9 +44,22 @@ session_start_max_notes: 10
 # Options: auto, ask, never
 auto_init_project_vault: ask
 
+# Whether to automatically capture knowledge notes during work
+# Options: true, false
+auto_capture: true
+
+# Days before vault notes are considered stale (used by maintenance)
+staleness_days: 30
+
 # Whether session-start detects and outputs the project's tech stack
 # Options: true, false
 stack_detection: false
+
+# Bug creation model: PM-Acceptor fast-track vs centralized Sr PM
+# When false (default), only Sr PM creates bugs (ensures consistency and completeness)
+# When true, PM-Acceptor can create bugs directly during story review (faster, less overhead)
+# Options: true, false
+bug_fast_track: false
 
 # Workflow FSM -- structural enforcement of nd status transitions
 # When enabled, pvg guard blocks nd commands that skip workflow steps
@@ -81,7 +94,10 @@ Show the user the current state:
 | proposal_expiry_days     | 30        | Days before proposals are flagged stale          |
 | session_start_max_notes  | 10        | Max notes summarized per subfolder at start      |
 | auto_init_project_vault  | ask       | Create .vault/knowledge/ on first capture        |
+| auto_capture             | true      | Automatically capture knowledge notes during work |
+| staleness_days           | 30        | Days before vault notes are considered stale     |
 | stack_detection          | false     | Detect and output project tech stack at start    |
+| bug_fast_track           | false     | PM-Acceptor can create bugs directly during review |
 | workflow.fsm             | false     | Structural enforcement of nd status transitions  |
 | workflow.sequence        | open,...  | Ordered status pipeline (forward=+1, backward=any) |
 | workflow.exit_rules      | ...       | Escape rules for blocked/rejected statuses        |
@@ -118,6 +134,14 @@ pvg settings proposal_expiry_days=14
 
 **If `proposal_expiry_days` was changed:**
 - No side effects -- `/vault-triage` reads this at runtime
+
+**If `bug_fast_track` was changed:**
+- `true` (enable):
+  1. Report: "Bug fast-track enabled. PM-Acceptor can now create bugs directly during story review."
+  2. Report: "Guardrails enforced: P0 hardcoded, parent epic auto-detected, discovered-by-pm label."
+- `false` (disable):
+  1. Report: "Bug fast-track disabled. All bugs route through Sr PM (centralized model)."
+  2. No side effects -- PM-Acceptor reverts to DISCOVERED_BUG blocks.
 
 **If `workflow.fsm` was changed:**
 - `true` (enable):

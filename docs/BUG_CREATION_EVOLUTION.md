@@ -231,23 +231,29 @@ This could break down if:
 3. Developers feel disconnected (can't create bugs directly)
 4. Simple bugs take too long (full AC for 1-line fix)
 
-## Potential Future Enhancement
+## Implemented: Bug Fast-Track (opt-in)
 
-For high-volume bug discovery, consider optional "fast track":
+The fast-track model is now available as an opt-in setting. When enabled, PM-Acceptor
+can create bugs directly during story review, bypassing the Sr PM routing step.
 
-```python
-if bug_type == "obvious" and bug_scope == "contained":
-    # Fast track: PM creates with minimal detail
-    pm_creates_bug(priority=0)
-else:
-    # Normal path: Sr PM does full triage
-    sr_pm_triages_bug(structured=True)
-```
+**Activation (either of these):**
+- Project setting: `pvg settings bug_fast_track=true`
+- Per-story label: `pm-creates-bugs`
 
-This would be a future optimization, not needed now.
+**Mandatory guardrails (non-negotiable, enforced in PM-Acceptor prompt):**
+- Priority: ALWAYS P0 (hardcoded)
+- Parent: ALWAYS set to story's epic (auto-detected via `nd show`)
+- Label: ALWAYS `discovered-by-pm` (origin tracking)
+- Deduplication: Check existing bugs in epic before creating
+
+**Default behavior unchanged:** When bug_fast_track is false and no label is present,
+PM-Acceptor outputs DISCOVERED_BUG blocks for Sr PM triage (centralized model).
+
+See `agents/pm.md` for the full conditional logic and `commands/vault-settings.md`
+for the setting documentation.
 
 ## Related
 
-- [[Session Operating Mode]] — "Sr PM is ONLY agent authorized to create bugs"
-- [[Sr PM Agent]] — Bug triage mode section
-- [[PM Acceptor Agent]] — Reporting Discovered Bugs section
+- [[Session Operating Mode]] — Dispatcher operating mode and bug routing
+- [[Sr PM Agent]] — Bug triage mode section (default path)
+- [[PM Acceptor Agent]] — Reporting Discovered Bugs section (conditional: centralized vs fast-track)

@@ -27,7 +27,7 @@ Verify activation succeeded before continuing.
 
 Each iteration, pick work in this order:
 
-0. **Sr. PM for bug triage** (highest priority -- discovered bugs need structure)
+0. **Bug triage** (highest priority -- discovered bugs need structure)
    After any Developer or PM-Acceptor agent completes, scan its output for
    `DISCOVERED_BUG:` blocks. If found, collect ALL bug reports from that agent
    and spawn `paivot-graph:sr-pm` with:
@@ -37,6 +37,11 @@ Each iteration, pick work in this order:
    ```
    Wait for Sr. PM to finish before continuing. Bugs need epic placement and
    dependency chains before other work can be prioritized correctly.
+
+   **Note:** When `bug_fast_track` is enabled (or story has `pm-creates-bugs` label),
+   PM-Acceptor creates bugs directly during review -- there will be no DISCOVERED_BUG
+   blocks to route to Sr PM for those stories. Only bugs from Developer agents or from
+   PM-Acceptor in centralized mode (the default) appear as DISCOVERED_BUG blocks.
 
 1. **PM-Acceptor for delivered stories** (unblock the pipeline)
    ```bash
