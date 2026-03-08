@@ -54,8 +54,11 @@ If story has `hard-tdd` label, adjust review based on phase:
 
 ### nd Commands
 
-- ACCEPT: nd close <id> --reason="Accepted: <summary>" --start=<next-id>
-  (chains execution path to the next story automatically)
+- ACCEPT (two steps -- both mandatory):
+  1. nd labels add <id> accepted
+     (The merge gate blocks story branch merges without this label. This MUST come first.)
+  2. nd close <id> --reason="Accepted: <summary>" --start=<next-id>
+     (chains execution path to the next story automatically)
 - REJECT: nd reopen <id>
   then: nd comments add <id> "EXPECTED: ... DELIVERED: ... GAP: ... FIX: ..."
 - Check milestone gate: nd epic close-eligible
@@ -128,5 +131,5 @@ This is not optional. An epic with all children accepted must be closed immediat
 
 ### Decisions
 
-- ACCEPT: close the story with `nd close --reason --start` (see nd Commands above), then run Epic Auto-Close
+- ACCEPT: add `accepted` label with `nd labels add <id> accepted`, then close with `nd close --reason --start` (see nd Commands above), then run Epic Auto-Close
 - REJECT: reopen with 4-part notes via `nd reopen` + `nd comments add` (see nd Commands above)

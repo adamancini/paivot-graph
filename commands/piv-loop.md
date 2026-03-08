@@ -134,6 +134,8 @@ Developer receives worktree rooted at `story/STORY_ID`. They work in isolation, 
 
 ### Story Merge (After PM Approves)
 
+**STRUCTURAL GATE:** `pvg guard` blocks `git merge story/*` unless the story has the `accepted` label in nd. This is enforced by the PreToolUse hook -- you cannot bypass it. If the merge is blocked, spawn PM-Acceptor first.
+
 After PM-Acceptor adds `accepted` label to a delivered story:
 
 ```bash
@@ -307,6 +309,8 @@ For bulk cleanup after context loss, use `pvg loop recover` instead of manual
 `git worktree remove` commands (see Post-Compaction Recovery below).
 
 ## Post-Compaction Recovery
+
+**STRUCTURAL ENFORCEMENT:** The `pvg` pre-compact hook now emits a mandatory `pvg loop recover` reminder before every compaction. This reminder survives in the compaction summary. You MUST run `pvg loop recover` as the FIRST command after any compaction -- before touching git, before spawning agents, before inspecting branches.
 
 After context compaction, you lose track of running agents and their worktrees.
 Run recovery instead of doing manual cleanup:
