@@ -82,7 +82,7 @@ This is idempotent -- it creates missing notes and skips existing ones. Use `mak
 
 ### Hooks (automatic)
 
-Five hooks fire automatically during Claude Code sessions:
+Multiple hook handlers fire automatically during Claude Code sessions:
 
 | Hook | Event | What it does |
 |------|-------|--------------|
@@ -91,6 +91,8 @@ Five hooks fire automatically during Claude Code sessions:
 | **Pre-Compact** | PreCompact | Reminds Claude to capture decisions, patterns, and debug insights before memory is lost |
 | **Stop** | Stop | Soft reminder to check the knowledge capture checklist |
 | **Session End** | SessionEnd | Appends a session log entry to the project's vault note |
+
+Additional hook handlers are also registered for dispatcher tracking, user-prompt detection, and memory-tool interception; see `hooks/hooks.json`.
 
 ### Commands (user-invoked)
 
@@ -124,6 +126,8 @@ For stories where correctness is critical, add the `hard-tdd` label. This activa
 
 1. **RED phase** -- A Test Author developer writes tests only (unit + integration). PM-Acceptor reviews tests against acceptance criteria: "If these tests passed, would they prove the story is done?"
 2. **GREEN phase** -- A separate Implementer developer writes code to make all tests pass. The Implementer cannot modify test files -- git enforces this structurally via commit diffing.
+
+The active phase is conveyed by the dispatcher prompt (`RED PHASE` / `GREEN PHASE`). No extra nd labels are required beyond `hard-tdd`.
 
 The Sr PM applies the label during backlog creation (user can steer: "hard-tdd on all payment stories"). The label persists on the story as a permanent record, read by every agent:
 

@@ -128,11 +128,11 @@ Work through the approved backlog top-to-bottom. For each story:
    - Review evidence (CI results, coverage, test output)
    - Verify outcomes match acceptance criteria
    - Accept: `nd close <id> --reason="Accepted: <summary>" --start=<next-id>`
-   - Or reject: `nd reopen <id>` with detailed notes via `nd comments add`
+   - Or reject: return the story to `open`, remove `delivered`, add `rejected`, and leave detailed notes via `nd comments add`
 
 3. **Capture learnings** to the vault via `vlt vault="Claude" create name="<Title>" path="_inbox/<Title>.md" content="..."` (decisions, patterns, debug insights)
 
-4. If a discovered issue arises during implementation, quick-capture it: `nd q "Discovered: <description>" --type=bug --priority=<P>` -- do NOT scope-creep the current story.
+4. If a discovered issue arises during implementation, route it through the documented bug flow: Developer/PM-Acceptor emits `DISCOVERED_BUG`, then Sr PM triages it (or PM fast-track if enabled). Do NOT quick-capture ad-hoc bugs with `nd q`.
 
 5. Move to the next story.
 

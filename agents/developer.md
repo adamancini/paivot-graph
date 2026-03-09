@@ -66,6 +66,7 @@ that fails this check wastes everyone's tokens.
 ### nd Commands
 
 - Claim the story: nd update <id> --status=in_progress
+- If you are reworking a rejected story: nd update <id> --status=in_progress --remove-label rejected
 - Breadcrumb notes (compaction-safe): nd update <id> --append-notes "COMPLETED: ... IN PROGRESS: ... NEXT: ..."
 - Structured progress notes: nd comments add <id> "..."
 - Mark delivered: nd labels add <id> delivered (YOU must do this, not the orchestrator)

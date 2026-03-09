@@ -60,9 +60,9 @@ Each iteration, pick work in this order:
 
 2. **Developer for rejected stories** (fix before starting new work)
    ```bash
-   nd list --status in_progress --label rejected --json
+   nd list --status open --label rejected --json
    ```
-   For each: spawn `paivot-graph:developer` agent to address rejection notes.
+   For each: spawn `paivot-graph:developer` agent to address rejection notes, claim the story, and clear the `rejected` label before re-delivery.
 
 3. **Developer for ready stories** (new work)
    ```bash
@@ -140,9 +140,9 @@ Developer receives worktree rooted at `story/STORY_ID`. They work in isolation, 
 
 ### Story Merge (After PM Approves)
 
-**STRUCTURAL GATE:** `pvg guard` blocks `git merge story/*` unless the story has the `accepted` label in nd. This is enforced by the PreToolUse hook -- you cannot bypass it. If the merge is blocked, spawn PM-Acceptor first.
+**STRUCTURAL GATE:** `pvg guard` blocks `git merge story/*` unless the story is both labeled `accepted` and `closed` in nd. This is enforced by the PreToolUse hook in Paivot-managed repos, not just when dispatcher mode happens to be on. If the merge is blocked, let PM-Acceptor finish review first.
 
-After PM-Acceptor adds `accepted` label to a delivered story:
+After PM-Acceptor adds `accepted` and closes the delivered story:
 
 ```bash
 git fetch origin
@@ -163,6 +163,8 @@ git push origin epic/EPIC_ID
 # Cleanup story branch
 git push origin --delete story/STORY_ID
 ```
+
+**Canonical branch names:** use `epic/<EPIC_ID>` and `story/<STORY_ID>` exactly. Do not append descriptive suffixes. The dispatcher, merge gate, and recovery flow all assume IDs are the full branch key.
 
 **Merge order:** If multiple stories waiting to merge, process in priority order (P0 first). Use `nd show STORY_ID | grep -i parent` to detect dependencies; merge dependencies first.
 

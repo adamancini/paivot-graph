@@ -176,7 +176,7 @@ MANDATORY SKILLS TO REVIEW:
 ### Branch-per-Epic
 
 After creating the epic, create the working branch:
-  git checkout -b epic/<EPIC-ID>-<Brief-Desc> main
+  git checkout -b epic/<EPIC-ID> main
 All stories in the epic are developed on this branch. After all stories are accepted and the epic is closed, merge to main and delete the branch.
 
 ### Terminology Audit (MANDATORY -- run after all stories are created)

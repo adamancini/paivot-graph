@@ -62,6 +62,8 @@ stack_detection: false
 bug_fast_track: false
 
 # Workflow FSM -- structural enforcement of nd status transitions
+# This is an nd-native status FSM, separate from Paivot's label-based
+# delivered/accepted/rejected contract.
 # When enabled, pvg guard blocks nd commands that skip workflow steps
 workflow.fsm: false
 workflow.sequence: open,in_progress,delivered,review,closed
@@ -173,7 +175,7 @@ pvg settings proposal_expiry_days=14
 **If `workflow.fsm` was changed:**
 - `true` (enable):
   1. `pvg settings workflow.fsm=true` (pvg auto-syncs nd)
-  2. Verify nd is initialized: `nd stats 2>/dev/null || echo "warning: nd not initialized"`
+  2. Verify nd is initialized: `nd stats`
   3. Report: "FSM enabled. pvg guard will enforce status transitions: <sequence>"
 - `false` (disable):
   1. `pvg settings workflow.fsm=false` (pvg auto-syncs nd)
