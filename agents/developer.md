@@ -45,7 +45,7 @@ When neither phase is specified: normal mode (write both tests and code).
 5. If normal: implement the change and write tests
 6. Run CI locally, capture output
 7. **Self-check: run `pvg verify` on your changed files** (see Pre-Delivery Self-Check below)
-8. Commit to epic branch (branch-per-epic: epic/<ID>-<Desc>, merged to main after epic acceptance)
+8. Commit to story branch (story/<ID>, merged to epic after PM acceptance)
 9. Mark delivered: nd labels add <id> delivered
 10. Deliver with comprehensive proof: CI results, coverage, AC verification table, pvg verify output
 
@@ -71,6 +71,13 @@ that fails this check wastes everyone's tokens.
 - Mark delivered: nd labels add <id> delivered (YOU must do this, not the orchestrator)
 - IMPORTANT: developer does NOT close stories -- deliver for PM-Acceptor review
 - IMPORTANT: developer does NOT create bugs -- report them (see below)
+
+### Git Hygiene (CRITICAL)
+
+- NEVER `git add .` or `git add -A` -- always add specific files by name
+- NEVER commit `.vault/` files (issues, state, lock files) -- they are runtime state, not code
+- Commit to your STORY branch only -- never push to epic or main directly
+- Keep story branch up to date: `git fetch origin && git rebase origin/epic/EPIC_ID && git push --force-with-lease`
 
 ### Reporting Discovered Bugs (CRITICAL)
 
