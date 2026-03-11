@@ -57,6 +57,10 @@ Each iteration, pick work in this order:
    **The PM-Acceptor closes the story itself** (`nd close --reason`). Do NOT
    re-close stories after the PM-Acceptor finishes -- they are already closed.
    **After each acceptance**: the PM-Acceptor runs epic auto-close (see pm.md).
+   **IMMEDIATELY after acceptance**: merge the story branch to epic (see Story
+   Merge below). Complete the merge -- including conflict resolution if needed --
+   before moving to the next priority item. An accepted story with an unmerged
+   branch is incomplete work.
 
 2. **Developer for rejected stories** (fix before starting new work)
    ```bash
@@ -144,29 +148,73 @@ Developer receives worktree rooted at `story/STORY_ID`. They work in isolation, 
 
 ### Story Merge (After PM Approves)
 
-**STRUCTURAL GATE:** `pvg guard` blocks `git merge story/*` unless the story is both labeled `accepted` and `closed` in nd. This is enforced by the PreToolUse hook in Paivot-managed repos, not just when dispatcher mode happens to be on. If the merge is blocked, let PM-Acceptor finish review first.
+**STRUCTURAL GATE:** `pvg guard` blocks `git merge story/*` unless the story is both labeled `accepted` and `closed` in nd. This is enforced by the PreToolUse hook in Paivot-managed repos. If the merge is blocked, let PM-Acceptor finish review first.
+
+**CRITICAL:** Merging is your IMMEDIATE next step after PM acceptance. Complete the merge (including conflict resolution) before moving to the next priority item. A story that is accepted in nd but not merged in git is incomplete work.
 
 After PM-Acceptor adds `accepted` and closes the delivered story:
+
+**Step 1: Attempt the merge**
 
 ```bash
 git fetch origin
 git checkout epic/EPIC_ID
-git pull origin epic/EPIC_ID  # Ensure latest (other stories may have merged)
+git pull origin epic/EPIC_ID
+git merge --no-ff origin/story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY_ID"
+```
 
-# Attempt merge
-if ! git merge --no-ff origin/story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY_ID"; then
-  # Conflict detected
-  echo "Merge conflict detected. Spawning developer to resolve..."
-  # Spawn Developer with: "Resolve merge conflict between story/STORY_ID and epic/EPIC_ID"
-  # Developer updates story branch, dispatcher retries merge
-  exit 1
-fi
+**Step 2a: Merge succeeded** -- push and clean up:
 
+```bash
 git push origin epic/EPIC_ID
-
-# Cleanup story branch (local + remote)
 git branch -D story/STORY_ID
 git push origin --delete story/STORY_ID
+```
+
+**Step 2b: Merge conflict** -- abort, stay on epic, spawn developer, retry:
+
+Do NOT checkout main. Do NOT move to another priority item. Handle inline.
+
+```bash
+# 1. Abort the failed merge. Stay on the epic branch.
+git merge --abort
+# You are still on epic/EPIC_ID. Do NOT checkout main or any other branch.
+```
+
+```
+# 2. Spawn developer for conflict resolution. Use this exact prompt:
+CONFLICT RESOLUTION MODE. Story STORY_ID is accepted but cannot merge
+into epic/EPIC_ID due to conflicts.
+
+Your task: rebase story/STORY_ID onto the latest epic/EPIC_ID, resolving
+all conflicts.
+
+Steps:
+1. git fetch origin
+2. git checkout story/STORY_ID
+3. git rebase origin/epic/EPIC_ID
+4. Resolve conflicts in each file (keep functionality from both sides)
+5. git rebase --continue after each resolution
+6. Run tests to verify nothing is broken
+7. git push --force-with-lease origin story/STORY_ID
+
+Do NOT update nd -- the story is already accepted and closed.
+Report: list of conflicting files, resolution decisions, test results.
+```
+
+```bash
+# 3. After developer completes, retry the merge from the epic branch:
+git fetch origin
+git checkout epic/EPIC_ID
+git pull origin epic/EPIC_ID
+git merge --no-ff origin/story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY_ID"
+```
+
+```bash
+# 4. If retry succeeds: push and clean up (same as Step 2a).
+# 5. If retry STILL fails: escalate to user via AskUserQuestion:
+#    "Merge conflict persists for STORY_ID into epic/EPIC_ID after developer
+#     rebase. Please resolve manually or provide guidance."
 ```
 
 **Canonical branch names:** use `epic/<EPIC_ID>` and `story/<STORY_ID>` exactly. Do not append descriptive suffixes. The dispatcher, merge gate, and recovery flow all assume IDs are the full branch key.

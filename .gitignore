@@ -12,6 +12,10 @@ Thumbs.db
 # Claude Code local files
 .claude/*.local.md
 
+# Runtime vault artifacts
+.vault/.guard/
+.vault/.vlt.lock
+.vault/knowledge/.vlt.lock
+
 # Internal documents
 ENTERPRISE.md
-

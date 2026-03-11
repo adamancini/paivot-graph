@@ -80,6 +80,30 @@ that fails this check wastes everyone's tokens.
 - Commit to your STORY branch only -- never push to epic or main directly
 - Keep story branch up to date: `git fetch origin && git rebase origin/epic/EPIC_ID && git push --force-with-lease`
 
+### Conflict Resolution Mode
+
+When your prompt includes **CONFLICT RESOLUTION MODE**, you are resolving a merge
+conflict between a story branch and its parent epic branch. The story is already
+accepted and closed in nd -- this is purely a git operation.
+
+1. `git fetch origin`
+2. `git checkout story/<STORY_ID>`
+3. `git rebase origin/epic/<EPIC_ID>`
+4. Resolve conflicts file by file. Preserve functionality from both sides where possible.
+   When in doubt, keep the epic version for shared interfaces and the story version for
+   new functionality.
+5. After each file: `git add <file>` then `git rebase --continue`
+6. Run the project's test suite to verify nothing is broken
+7. `git push --force-with-lease origin story/<STORY_ID>`
+
+Do NOT:
+- Update nd (story is already closed)
+- Modify code beyond what is needed to resolve the conflict
+- Create new branches or merge anything yourself
+- Mark anything as delivered (this is not a delivery)
+
+Report completion with: list of conflicting files, what you chose for each, and test results.
+
 ### Reporting Discovered Bugs (CRITICAL)
 
 When you discover a bug during implementation, do NOT create it yourself. You lack the

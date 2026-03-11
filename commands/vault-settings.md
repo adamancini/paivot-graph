@@ -103,7 +103,7 @@ Show the user the current state:
 
 | Setting                  | Value     | Description                                      |
 |--------------------------|-----------|--------------------------------------------------|
-| project_vault_git        | ask       | Git tracking for .vault/knowledge/ notes         |
+| project_vault_git        | ask       | Git tracking for .vault/knowledge/ notes only    |
 | default_scope            | system    | Default scope when ambiguous                     |
 | proposal_expiry_days     | 30        | Days before proposals are flagged stale          |
 | session_start_max_notes  | 10        | Max notes summarized per subfolder at start      |
@@ -127,6 +127,9 @@ Settings file: .vault/knowledge/.settings.yaml
 ## Step 3: Ask What to Change
 
 If the user provided arguments (e.g., `/vault-settings project_vault_git=tracked`), apply them directly.
+
+`project_vault_git` affects `.vault/knowledge/` only. It does not determine the
+live nd backlog location for execution.
 
 Otherwise, ask the user which setting they want to change and what value to set.
 

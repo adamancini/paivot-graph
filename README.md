@@ -24,7 +24,7 @@ Without vlt, the plugin falls back to direct filesystem operations (grep, cat) w
 
 ### 2. nd (recommended for execution)
 
-**[nd](https://github.com/RamXX/nd) is the git-native issue tracker** that agents use to manage backlogs, stories, dependencies, and execution paths during development. If you plan to use the Paivot execution workflow (developer, PM-Acceptor, Sr PM, anchor, retro agents), nd is required.
+**[nd](https://github.com/RamXX/nd) is the issue tracker Paivot uses for execution.** The on-disk format is git-native markdown, but for multi-branch execution the live backlog should be branch-independent rather than copied into each story branch checkout. See [docs/LIVE_SOR.md](docs/LIVE_SOR.md).
 
 ```bash
 # From source (requires Go 1.22+)
@@ -157,6 +157,10 @@ Knowledge lives in three tiers with different governance rules:
 | **System** | Global Obsidian vault ("Claude") | All projects | Proposal workflow: `/vault-evolve` creates proposals, `/vault-triage` reviews them |
 | **Project** | `.vault/knowledge/` in each repo | One project | Via `vlt` commands only (locking enforced) |
 | **Session** | `~/.claude/projects/*/memory/` | One session | Ephemeral, managed by Claude Code |
+
+The nd live backlog is a separate execution concern from `.vault/knowledge/`.
+For concurrent multi-branch work, keep the mutable nd vault outside branch
+checkouts and share it across worktrees. See [docs/LIVE_SOR.md](docs/LIVE_SOR.md).
 
 ### Why vlt-only access matters
 
