@@ -223,22 +223,21 @@ git merge --no-ff origin/story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY
 
 ### Epic Completion (All Stories Merged)
 
-When all stories in epic have been approved and merged to epic branch:
+When all stories in the epic have been approved and merged to the epic branch,
+prepare the epic for merge back to `main` through the repository's protected-main
+flow. Do NOT merge `epic/*` directly into `main` from the dispatcher.
 
 ```bash
 git fetch origin
-git checkout main
-git pull origin main
-git merge --no-ff origin/epic/EPIC_ID -m "Merge epic/EPIC_ID to main"
-git push origin main
+git checkout epic/EPIC_ID
+git pull origin epic/EPIC_ID
 
-# Cleanup epic branch (local + remote)
-git branch -D epic/EPIC_ID
-git push origin --delete epic/EPIC_ID
+# Then hand off to the repo's PR/integration process for epic -> main.
+# Main is protected; do not push a direct merge from the dispatcher.
 ```
 
-Note: This is a solo-developer workflow -- epics merge directly to main without PRs.
-PR-based review gates belong in paivot-enterprise for team workflows.
+If your environment provides PR automation, use it. Otherwise stop after the epic
+branch is ready and ask the user to complete or approve the protected-main merge.
 
 ## Dispatcher Rules
 
@@ -252,7 +251,7 @@ You are a dispatcher. You coordinate agents and manage git integration. You NEVE
 - Inspect agent worktree internals (cd into `.claude/worktrees/agent-*`, run git log, read files there)
 - Re-close stories that the PM-Acceptor already closed (it closes on acceptance -- you just read its output)
 
-**You DO manage git:** Creating epic/story branches, merging story→epic after PM approval, merging epic→main when complete, resolving merge conflicts (by spawning developer if conflicts arise).
+**You DO manage git:** Creating epic/story branches, merging story→epic after PM approval, preparing epic branches for protected-main integration, and resolving merge conflicts (by spawning developer if conflicts arise).
 
 If an agent fails, re-spawn it with corrective guidance. Do not do its work.
 
