@@ -46,6 +46,8 @@ Run `pvg verify` on the delivered files:
 ```bash
 pvg verify <path-to-changed-files> --format=text
 ```
+Use explicit delivered file paths, not `.`. If you scan a directory instead,
+add `--include-tests` whenever the delivery touched test files.
 If pvg verify reports stubs (NotImplementedError, panic("todo"), return {}, bare pass,
 unimplemented!()) or thin files: **reject immediately**. No need to spend tokens on
 LLM review when deterministic checks already caught incomplete implementation.

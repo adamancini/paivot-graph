@@ -57,6 +57,8 @@ pvg verify <paths-to-changed-files> --format=text
 ```
 
 This catches stubs, thin files, and TODO markers that the PM-Acceptor will reject on sight.
+Pass the explicit changed file paths, not `.`. If you choose to scan a directory instead,
+add `--include-tests` whenever test files changed.
 Fix any `stub` or `thin_file` issues before delivery. `todo` markers should be resolved
 or documented in the delivery proof explaining why they remain.
 

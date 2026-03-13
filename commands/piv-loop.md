@@ -219,7 +219,7 @@ git merge --no-ff origin/story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY
 
 **Canonical branch names:** use `epic/<EPIC_ID>` and `story/<STORY_ID>` exactly. Do not append descriptive suffixes. The dispatcher, merge gate, and recovery flow all assume IDs are the full branch key.
 
-**Merge order:** If multiple stories waiting to merge, process in priority order (P0 first). Use `nd show STORY_ID | grep -i parent` to detect dependencies; merge dependencies first.
+**Merge order:** If multiple stories are waiting to merge, process them in dependency order first, then priority order (P0 first) within each ready layer. Do NOT use `parent` for this: `parent` is epic containment, not the dependency graph. Use `nd dep tree STORY_ID` and `nd show STORY_ID --json` to inspect `blocked_by`, `blocks`, and `follows`; merge prerequisite stories before dependents.
 
 ### Epic Completion (All Stories Merged)
 
