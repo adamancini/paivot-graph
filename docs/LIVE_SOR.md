@@ -14,6 +14,14 @@ Example location:
 $(git rev-parse --git-common-dir)/paivot/nd-vault
 ```
 
+The worktree advertises that shared vault through:
+
+```yaml
+# .vault/.nd-shared.yaml
+mode: git_common_dir
+path: paivot/nd-vault
+```
+
 That vault is the live source of record for:
 
 - issue status

@@ -155,7 +155,7 @@ Knowledge lives in three tiers with different governance rules:
 | Tier | Location | Scope | How changes are made |
 |------|----------|-------|---------------------|
 | **System** | Global Obsidian vault ("Claude") | All projects | Proposal workflow: `/vault-evolve` creates proposals, `/vault-triage` reviews them |
-| **Project** | `.vault/knowledge/` in each repo | One project | Via `vlt` commands only (locking enforced) |
+| **Project** | `.vault/knowledge/` in each repo | One project | Via `vlt` commands only |
 | **Session** | `~/.claude/projects/*/memory/` | One session | Ephemeral, managed by Claude Code |
 
 The nd live backlog is a separate execution concern from `.vault/knowledge/`.
@@ -164,7 +164,7 @@ checkouts and share it across worktrees. See [docs/LIVE_SOR.md](docs/LIVE_SOR.md
 
 ### Why vlt-only access matters
 
-When dozens of agents run concurrently -- developers implementing stories, PM-Acceptors reviewing deliveries, the retro agent extracting learnings -- they all read and write vault notes. vlt uses advisory file locking (`.vlt.lock`) to serialize these operations. Direct file I/O (Edit, Write, `cat >`) bypasses that lock, creating race conditions where one agent's write silently overwrites another's.
+When dozens of agents run concurrently -- developers implementing stories, PM-Acceptors reviewing deliveries, the retro agent extracting learnings -- they all read and write vault notes. vlt write paths use advisory file locking (`.vlt.lock`), and pvg hook write paths acquire that lock explicitly before mirroring session state. Direct file I/O (Edit, Write, `cat >`) bypasses that protection, creating race conditions where one agent's write silently overwrites another's.
 
 Advisory instructions ("please use vlt") don't work -- subagents routinely bypass them (see the vault note "Subagents do not follow advisory instructions"). The enforcement must be structural.
 
@@ -192,7 +192,7 @@ All files under `.vault/knowledge/` are protected, with one exception: `.setting
 The guard checks:
 - **Edit/Write** -- blocks if `file_path` targets `.vault/knowledge/` (except `.settings.yaml`)
 - **Bash** -- blocks shell write patterns (`>`, `>>`, `cat >`, `cp`, `mv`, `mkdir`) targeting `.vault/knowledge/`
-- **Bash with vlt** -- always allowed (vlt is the intended mechanism, provides locking)
+- **Bash with vlt** -- always allowed (vlt is the intended mechanism; its write paths provide advisory locking)
 
 ### Graph-aware retrieval with vlt
 
