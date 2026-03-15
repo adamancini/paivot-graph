@@ -68,6 +68,24 @@ This does three things:
 
 Restart any open Claude Code sessions for hooks to take effect.
 
+## If something goes wrong
+
+If a session gets into a bad state, use the smallest escape hatch that solves the problem:
+
+| Situation | What to run | What it does |
+|-----------|-------------|--------------|
+| You want Claude to stop acting as coordinator-only | `pvg dispatcher off` | Disables dispatcher mode for the current repo |
+| An execution loop should stop immediately | `pvg loop cancel` | Cancels the active loop without touching your backlog or vault |
+| Claude lost context or a session was interrupted mid-loop | `pvg loop recover` | Rebuilds loop state from git and nd instead of guessing |
+| You want the plugin completely out of the way | `make uninstall` | Removes the Claude Code plugin from this checkout |
+
+Practical advice:
+
+- Start with `pvg dispatcher off` or `pvg loop cancel`. Those are the normal operational escape hatches.
+- Use `pvg loop recover` after compaction, interruption, or any situation where the loop state looks stale. Do not hand-edit loop state files.
+- If hooks are still behaving unexpectedly, uninstall the plugin, restart Claude Code, and reinstall cleanly.
+- Your nd backlog and Obsidian vault remain on disk. Turning dispatcher mode off, cancelling a loop, or uninstalling the plugin does not delete your work.
+
 ### Seed the vault (first time)
 
 Populate the Obsidian vault with the methodology notes, behavioral conventions, and skill content that agents read at runtime:
