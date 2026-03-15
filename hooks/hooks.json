@@ -27,7 +27,7 @@
     ],
     "SubagentStart": [
       {
-        "matcher": "paivot-graph:business-analyst|paivot-graph:designer|paivot-graph:architect",
+        "matcher": "paivot-graph:business-analyst|paivot-graph:designer|paivot-graph:architect|paivot-graph:sr-pm|paivot-graph:developer|paivot-graph:pm",
         "hooks": [
           {
             "type": "command",
@@ -39,7 +39,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "paivot-graph:business-analyst|paivot-graph:designer|paivot-graph:architect",
+        "matcher": "paivot-graph:business-analyst|paivot-graph:designer|paivot-graph:architect|paivot-graph:sr-pm|paivot-graph:developer|paivot-graph:pm",
         "hooks": [
           {
             "type": "command",

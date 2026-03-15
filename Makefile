@@ -176,10 +176,22 @@ assert v_file == v_plugin == v_market, \
 		|| (echo "FAIL: version mismatch across VERSION, plugin.json, marketplace.json" && exit 1)
 	@echo "OK: All versions in sync ($(VERSION))"
 	@echo ""
-	@echo "Checking hooks.json registers all 8 hook events..."
-	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; assert all(k in h for k in ['PreToolUse','UserPromptSubmit','SubagentStart','SubagentStop','SessionStart','PreCompact','Stop','SessionEnd']), 'missing hook events'" \
+	@echo "Checking hooks.json registers all required hook events..."
+	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; assert all(k in h for k in ['PreToolUse','UserPromptSubmit','SubagentStart','SubagentStop','SessionStart','PreCompact','Stop','PostToolUse','SessionEnd']), 'missing hook events'" \
 		|| (echo "FAIL: hooks.json missing required events" && exit 1)
-	@echo "OK: All 8 hook events registered"
+	@echo "OK: All required hook events registered"
+	@echo ""
+	@echo "Checking dispatcher-tracked subagents are wired in hooks.json..."
+	@python3 -c "\
+import json; \
+h=json.load(open('hooks/hooks.json'))['hooks']; \
+required=['paivot-graph:business-analyst','paivot-graph:designer','paivot-graph:architect','paivot-graph:sr-pm','paivot-graph:developer','paivot-graph:pm']; \
+start=' '.join(entry.get('matcher','') for entry in h['SubagentStart']); \
+stop=' '.join(entry.get('matcher','') for entry in h['SubagentStop']); \
+missing=[name for name in required if name not in start or name not in stop]; \
+assert not missing, f'missing tracked subagent hooks: {missing}'" \
+		|| (echo "FAIL: hooks.json is missing tracked subagent matchers" && exit 1)
+	@echo "OK: Dispatcher-tracked subagents are wired"
 	@echo ""
 	@echo "Checking hooks.json points to pvg binary..."
 	@python3 -c "import json; h=json.load(open('hooks/hooks.json'))['hooks']; cmds=[hook.get('command','') for e in h.values() for entry in e for hook in entry.get('hooks',[])]; bad=[c for c in cmds if 'pvg' not in c]; assert not bad, f'hooks not using pvg: {bad}'" \

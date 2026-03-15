@@ -92,7 +92,7 @@ Multiple hook handlers fire automatically during Claude Code sessions:
 | **Stop** | Stop | Soft reminder to check the knowledge capture checklist |
 | **Session End** | SessionEnd | Appends a session log entry to the project's vault note |
 
-Additional hook handlers are also registered for dispatcher tracking, user-prompt detection, and memory-tool interception; see `hooks/hooks.json`.
+Additional hook handlers are also registered for dispatcher tracking, user-prompt detection, and memory-tool interception; see `hooks/hooks.json`. Dispatcher tracking covers both D&F agents (BA, Designer, Architect) and execution agents (Sr PM, Developer, PM) so guarded nd mutations are only permitted from the responsible agent worktree.
 
 ### Commands (user-invoked)
 
