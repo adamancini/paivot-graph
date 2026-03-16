@@ -6,11 +6,11 @@ A [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code
 
 ### 1. vlt (required)
 
-**You must install [vlt](https://github.com/RamXX/vlt) before using this plugin.** vlt is the fast, standalone CLI that all hooks, commands, and agents use to interact with your Obsidian vault.
+**You must install [vlt](https://github.com/paivot-ai/vlt) before using this plugin.** vlt is the fast, standalone CLI that all hooks, commands, and agents use to interact with your Obsidian vault.
 
 ```bash
 # From source (requires Go 1.24+)
-git clone https://github.com/RamXX/vlt.git
+git clone https://github.com/paivot-ai/vlt.git
 cd vlt
 make install
 
@@ -18,17 +18,17 @@ make install
 vlt version   # should print vlt 0.9.0+
 ```
 
-Pre-built binaries are available at [vlt releases](https://github.com/RamXX/vlt/releases) if you don't have Go installed.
+Pre-built binaries are available at [vlt releases](https://github.com/paivot-ai/vlt/releases) if you don't have Go installed.
 
 Without vlt, the plugin falls back to direct filesystem operations (grep, cat) which are slower, lack vault-aware features (alias resolution, wikilink repair, backlink tracking), and miss the inert zone masking that prevents false positives.
 
 ### 2. nd (recommended for execution)
 
-**[nd](https://github.com/RamXX/nd) is the issue tracker Paivot uses for execution.** The on-disk format is git-native markdown, but for multi-branch execution the live backlog should be branch-independent rather than copied into each story branch checkout. See [docs/LIVE_SOR.md](docs/LIVE_SOR.md).
+**[nd](https://github.com/paivot-ai/nd) is the issue tracker Paivot uses for execution.** The on-disk format is git-native markdown, but for multi-branch execution the live backlog should be branch-independent rather than copied into each story branch checkout. See [docs/LIVE_SOR.md](docs/LIVE_SOR.md).
 
 ```bash
 # From source (requires Go 1.22+)
-git clone https://github.com/RamXX/nd.git
+git clone https://github.com/paivot-ai/nd.git
 cd nd
 make build
 make install    # Installs to ~/.local/bin/nd
@@ -37,7 +37,7 @@ make install    # Installs to ~/.local/bin/nd
 nd --help
 ```
 
-Pre-built binaries are available at [nd releases](https://github.com/RamXX/nd/releases).
+Pre-built binaries are available at [nd releases](https://github.com/paivot-ai/nd/releases).
 
 Without nd, the vault-knowledge and vault-lifecycle features still work (hooks, commands, skills), but the execution agents (developer, PM, Sr PM, anchor, retro) cannot manage work items.
 
@@ -82,7 +82,7 @@ This does four things:
 
 1. Checks that vlt and Claude Code are installed
 2. Verifies that `pvg` is on `PATH`
-3. Fetches the [vlt skill](https://github.com/RamXX/vlt) from GitHub and installs it to `~/.claude/skills/vlt-skill` (teaches Claude how to use vlt effectively)
+3. Fetches the [vlt skill](https://github.com/paivot-ai/vlt) from GitHub and installs it to `~/.claude/skills/vlt-skill` (teaches Claude how to use vlt effectively)
 4. Registers the plugin with Claude Code's marketplace and installs it
 
 Restart any open Claude Code sessions for hooks to take effect.
