@@ -160,23 +160,48 @@ The branch model does not change the live source of record requirement: when nd
 backs execution, the mutable backlog must live in a branch-independent vault
 shared across worktrees, not in branch-local `.vault/issues/` copies.
 
+### Remote Detection (MANDATORY first step)
+
+Before any branch operation, detect whether a remote exists:
+
+```bash
+HAS_REMOTE=$(git remote | head -1)
+```
+
+If `$HAS_REMOTE` is empty, the repo is **local-only**. Apply these rules to
+ALL git commands in every section below (story setup, merge, conflict resolution,
+epic completion, cleanup):
+
+- **Skip entirely:** `git fetch`, `git pull`, `git push`, `git push --delete`
+- **Replace `origin/BRANCH` with `BRANCH`:** e.g., `origin/epic/X` becomes `epic/X`,
+  `origin/story/Y` becomes `story/Y`, `origin/main` becomes `main`
+- **Skip remote branch cleanup:** `git branch -r --list` and `git push origin --delete`
+
+The examples below show the remote case. Adapt for local-only as described above.
+
 **Your responsibilities as dispatcher:**
 
 ### Story Branch Setup
 
 Before spawning a developer:
 
+**With remote:**
 ```bash
-# Ensure epic branch exists (create if needed)
 git fetch origin
 if ! git rev-parse --verify origin/epic/EPIC_ID >/dev/null 2>&1; then
   git checkout -b epic/EPIC_ID origin/main
   git push -u origin epic/EPIC_ID
 fi
-
-# Create story branch from epic
 git checkout -b story/STORY_ID origin/epic/EPIC_ID
 git push -u origin story/STORY_ID
+```
+
+**Local-only (no remote):**
+```bash
+if ! git rev-parse --verify epic/EPIC_ID >/dev/null 2>&1; then
+  git checkout -b epic/EPIC_ID main
+fi
+git checkout -b story/STORY_ID epic/EPIC_ID
 ```
 
 Developer receives worktree rooted at `story/STORY_ID`. They work in isolation, cannot accidentally push to epic or main.
@@ -191,6 +216,7 @@ After PM-Acceptor adds `accepted` and closes the delivered story:
 
 **Step 1: Attempt the merge**
 
+With remote:
 ```bash
 git fetch origin
 git checkout epic/EPIC_ID
@@ -198,12 +224,24 @@ git pull origin epic/EPIC_ID
 git merge --no-ff origin/story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY_ID"
 ```
 
-**Step 2a: Merge succeeded** -- push and clean up:
+Local-only:
+```bash
+git checkout epic/EPIC_ID
+git merge --no-ff story/STORY_ID -m "merge(epic/EPIC_ID): integrate STORY_ID"
+```
 
+**Step 2a: Merge succeeded** -- push (if remote) and clean up:
+
+With remote:
 ```bash
 git push origin epic/EPIC_ID
 git branch -D story/STORY_ID
 git push origin --delete story/STORY_ID
+```
+
+Local-only:
+```bash
+git branch -D story/STORY_ID
 ```
 
 **Step 2b: Merge conflict** -- abort, stay on epic, spawn developer, retry:
@@ -217,7 +255,8 @@ git merge --abort
 ```
 
 ```
-# 2. Spawn developer for conflict resolution. Use this exact prompt:
+# 2. Spawn developer for conflict resolution. Use this exact prompt
+#    (adapt origin references for local-only repos per Remote Detection):
 CONFLICT RESOLUTION MODE. Story STORY_ID is accepted but cannot merge
 into epic/EPIC_ID due to conflicts.
 
@@ -225,13 +264,13 @@ Your task: rebase story/STORY_ID onto the latest epic/EPIC_ID, resolving
 all conflicts.
 
 Steps:
-1. git fetch origin
+1. git fetch origin  (skip if local-only)
 2. git checkout story/STORY_ID
-3. git rebase origin/epic/EPIC_ID
+3. git rebase epic/EPIC_ID  (use origin/epic/EPIC_ID if remote exists)
 4. Resolve conflicts in each file (keep functionality from both sides)
 5. git rebase --continue after each resolution
 6. Run tests to verify nothing is broken
-7. git push --force-with-lease origin story/STORY_ID
+7. git push --force-with-lease origin story/STORY_ID  (skip if local-only)
 
 Do NOT update nd -- the story is already accepted and closed.
 Report: list of conflicting files, resolution decisions, test results.
