@@ -25,18 +25,34 @@ enforces this structurally -- it only returns stories scoped to the active epic.
 
 ## Setup
 
-If `$ARGUMENTS` is non-empty, run:
+Parse `$ARGUMENTS` for recognized flags ONLY. Everything else is natural language
+context (concurrency hints, instructions) that you should read and apply but NOT
+pass to the shell command.
+
+Recognized flags:
+- `--epic EPIC_ID` or a bare issue ID (e.g., `PRA-ru13`)
+- `--all`
+- `--max N` or `--max-iterations N`
+
+Any other text (e.g., "use up to 2 parallel devs", "focus on auth stories") is
+natural language. Extract intent from it but do NOT include it in the pvg command.
+
 ```bash
-pvg loop setup $ARGUMENTS
+# Examples:
+pvg loop setup                          # auto-select epic
+pvg loop setup --epic PRA-ru13          # target specific epic
+pvg loop setup --all --max 25           # all epics, 25 iterations
 ```
 
-If `$ARGUMENTS` is empty, run the bare command (auto-selects the highest-priority epic):
+If `$ARGUMENTS` contains only recognized flags, pass them through:
+```bash
+pvg loop setup $RECOGNIZED_FLAGS
+```
+
+If `$ARGUMENTS` is empty or contains only natural language, run bare:
 ```bash
 pvg loop setup
 ```
-
-To target a specific epic: `pvg loop setup --epic EPIC_ID`
-To run across all epics without containment (not recommended): `pvg loop setup --all`
 
 Verify activation succeeded before continuing.
 
