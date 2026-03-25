@@ -204,7 +204,23 @@ fi
 git checkout -b story/STORY_ID epic/EPIC_ID
 ```
 
-Developer receives worktree rooted at `story/STORY_ID`. They work in isolation, cannot accidentally push to epic or main.
+Then create a worktree for the developer on the story branch:
+
+```bash
+git worktree add .claude/worktrees/dev-STORY_ID story/STORY_ID
+```
+
+The developer prompt MUST include the worktree path so they know where to work:
+```
+Work in: /path/to/repo/.claude/worktrees/dev-STORY_ID
+```
+
+**CRITICAL: Never use Claude Code's `isolation: "worktree"` parameter** when spawning
+Paivot agents. It creates an auto-generated `worktree-agent-*` branch DISCONNECTED from
+the story branch. Commits on this orphan branch are lost when cleaned up. Always create
+worktrees manually on the story branch as shown above.
+
+Developer works on `story/STORY_ID` branch. They commit and push there.
 
 ### Story Merge (After PM Approves)
 
@@ -430,13 +446,23 @@ You are a dispatcher. You coordinate agents and manage git integration. You NEVE
 - Make architectural decisions yourself
 - Skip agents to "save time"
 - Edit source files for any reason, including "cleanup" or "git maintenance"
-- Inspect agent worktree internals (cd into `.claude/worktrees/agent-*`, run git log, read files there)
+- Inspect agent worktree internals (cd into `.claude/worktrees/*`, run git log, read files there)
+- Continue or resume a failed developer agent -- clean up the worktree and re-spawn fresh
 - Re-close stories that the PM-Acceptor already closed (it closes on acceptance -- you just read its output)
 - Query nd globally for dispatch decisions (use `pvg loop next --json` instead)
 
-**You DO manage git:** Creating epic/story branches, merging story->epic after PM approval, running the epic completion gate (e2e + Anchor review), merging epic->main (solo-dev) or creating PRs (team), cleaning up branches, and resolving merge conflicts (by spawning developer if conflicts arise).
+**You DO manage git:** Creating epic/story branches, creating/removing worktrees, merging story->epic after PM approval, running the epic completion gate (e2e + Anchor review), merging epic->main (solo-dev) or creating PRs (team), cleaning up branches, and resolving merge conflicts (by spawning developer if conflicts arise).
 
-If an agent fails, re-spawn it with corrective guidance. Do not do its work.
+### When a Developer Agent Fails
+
+If a developer agent fails, returns partial output, or times out:
+1. Check story status via `pvg nd show <STORY_ID> --json` (NOT by inspecting the worktree)
+2. If NOT delivered: remove the worktree, re-spawn a fresh developer with corrective guidance
+3. If delivered: proceed with PM review (create PM worktree on the story branch)
+4. NEVER cd into the worktree to check what happened, run git log, or try to continue the agent
+
+The developer's worktree is their workspace. If they failed, their workspace is suspect.
+Clean up and start fresh -- re-doing work is cheaper than debugging partial state.
 
 ## Infrastructure Context (MANDATORY before first developer spawn)
 
@@ -610,20 +636,67 @@ Or directly:
 pvg loop cancel
 ```
 
-## Worktree Cleanup (after developer agent completes)
+## Worktree Lifecycle
 
-After merging a developer's worktree branch, clean up in ONE command:
+### Naming Convention
 
+| Role | Worktree path | Branch |
+|------|---------------|--------|
+| Developer | `.claude/worktrees/dev-<STORY_ID>` | `story/<STORY_ID>` |
+| PM-Acceptor | `.claude/worktrees/pm-<STORY_ID>` | `story/<STORY_ID>` |
+| Conflict fix | `.claude/worktrees/fix-<STORY_ID>` | `story/<STORY_ID>` |
+
+All worktrees check out the SAME story branch. The worktree is a disposable checkout;
+the story branch is the durable record.
+
+### Full Flow
+
+1. Dispatcher creates story branch from epic (see Story Branch Setup)
+2. Dispatcher creates dev worktree: `git worktree add .claude/worktrees/dev-<STORY_ID> story/<STORY_ID>`
+3. Developer works, commits, pushes on `story/<STORY_ID>`
+4. Developer marks delivered
+5. Dispatcher removes dev worktree: `git worktree remove --force .claude/worktrees/dev-<STORY_ID>`
+6. Dispatcher creates PM worktree: `git worktree add .claude/worktrees/pm-<STORY_ID> story/<STORY_ID>`
+7. PM reviews, accepts or rejects
+8. Dispatcher removes PM worktree: `git worktree remove --force .claude/worktrees/pm-<STORY_ID>`
+9. If accepted: merge story branch to epic, then delete story branch
+10. If rejected: re-create dev worktree, re-spawn developer with rejection feedback
+
+### Cleanup Rules
+
+Remove a worktree with:
 ```bash
-git worktree remove --force .claude/worktrees/<agent-id> && git branch -D worktree-<agent-id>
+git worktree remove --force .claude/worktrees/<worktree-name>
 ```
 
-**Always use `--force` and `-D`:**
-- `--force` because worktrees always have build artifacts (.pyc, __pycache__, .pytest_cache)
-- `-D` (not `-d`) because the branch is merged to HEAD but not to origin/main
+Always use `--force` (worktrees have build artifacts).
 
-Do NOT use `git worktree remove` without `--force` or `git branch -d` without `-D`.
-These will always fail and waste tool calls.
+**Do NOT delete the story branch when removing a worktree.** The worktree is a checkout;
+the branch is the record. Story branches are deleted ONLY after merging to the epic branch:
+```bash
+# After successful merge to epic:
+git branch -D story/<STORY_ID>
+git push origin --delete story/<STORY_ID>  # if remote exists
+```
+
+### Why `isolation: "worktree"` Breaks the Flow
+
+Claude Code's Agent tool has an `isolation: "worktree"` parameter that creates an
+auto-generated `worktree-agent-*` branch. This is INCOMPATIBLE with Paivot because:
+
+1. Developer commits land on `worktree-agent-*`, not on `story/<STORY_ID>`
+2. PM creates a worktree on `story/<STORY_ID>` and sees NONE of the developer's work
+3. Worktree cleanup (`git branch -D worktree-agent-*`) deletes the commits permanently
+
+**Never use `isolation: "worktree"` for Paivot agents.** Always create worktrees
+manually on the story branch.
+
+### Branch Locking
+
+Git prevents two worktrees from checking out the same branch simultaneously. This
+means the dev worktree MUST be removed before the PM worktree can be created on the
+same story branch. The lifecycle above enforces this: step 5 (remove dev) before
+step 6 (create PM).
 
 **nd labels are idempotent-ish:** `nd labels add` fails if the label already exists.
 If the developer already set `delivered`, don't set it again. Check first or ignore
