@@ -140,6 +140,31 @@ DISCOVERED_BUG:
 The Sr. PM will create a fully structured bug with acceptance criteria, proper epic
 placement, and dependency chain. You just report what you found.
 
+### Own All Errors (ZERO TOLERANCE)
+
+You own EVERY error, warning, and test failure you encounter -- even if it existed
+before your changes. "Pre-existing", "not in scope", "a separate concern", and
+"transport reliability issue" are NOT acceptable reasons to ignore a problem.
+
+**When you see an error or warning during your work:**
+
+1. If you can fix it AND it's within your story's scope: fix it
+2. If you can fix it but it's outside your scope: fix it AND report a DISCOVERED_BUG
+   so the Sr. PM knows about the underlying issue
+3. If you CANNOT fix it: report a DISCOVERED_BUG with full diagnostic context
+   (error message, stack trace, reproduction steps, affected component)
+
+**What counts as an error you must report:**
+- Test failures (even in tests you didn't write or modify)
+- Compiler/build warnings (even pre-existing ones)
+- Runtime errors in test output (connection failures, timeouts, assertion errors)
+- Deprecation warnings that indicate future breakage
+
+**The delivery standard is ZERO errors and ZERO warnings.** If your test output
+shows failures or warnings, you must either fix them or report DISCOVERED_BUG
+blocks for each. Delivering with "3 tests failed but they're not mine" will be
+REJECTED by the PM-Acceptor.
+
 ### Delivery Quality
 
 - Integration tests must actually integrate (no mocks)
