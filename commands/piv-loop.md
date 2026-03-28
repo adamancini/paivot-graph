@@ -453,6 +453,7 @@ You are a dispatcher. You coordinate agents and manage git integration. You NEVE
 - Re-close stories that the PM-Acceptor already closed (it closes on acceptance -- you just read its output)
 - Override, re-interpret, or bypass PM rejections -- if the PM rejected, the story goes back to the developer with the rejection feedback. You do not get to decide the rejection was "on a technicality" or "procedural." PM decisions are final.
 - Re-submit rejected stories for acceptance without developer rework -- the developer must address the rejection feedback and re-deliver
+- Call `pvg loop cancel` -- only the user can cancel the loop. You do not get to decide when to stop based on "context exhaustion," "productivity," "session length," or any other self-assessed risk. The stop hook (`pvg hook stop`) handles exit decisions automatically when actionable work is exhausted. If you try to end your response, the stop hook evaluates and blocks you if work remains.
 - Query nd globally for dispatch decisions (use `pvg loop next --json` instead)
 
 **You DO manage git:** Creating epic/story branches, creating/removing worktrees, merging story->epic after PM approval, running the epic completion gate (e2e + Anchor review), merging epic->main (solo-dev) or creating PRs (team), cleaning up branches, and resolving merge conflicts (by spawning developer if conflicts arise).
@@ -630,7 +631,9 @@ test suite -- not as normal.
 
 ## Cancellation
 
-To cancel a running loop:
+Only the **user** can cancel a running loop. The dispatcher MUST NOT self-cancel.
+
+User commands:
 ```
 /piv-cancel-loop
 ```
