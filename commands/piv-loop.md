@@ -434,7 +434,24 @@ If your environment provides PR automation, use it and continue unattended.
 Otherwise stop after the PR is created and ask the user to complete or
 approve the merge. Branch cleanup happens after the PR is merged.
 
-**After merge to main**: if `epic_complete` included a `next_epic`, run
+**Step 4: Retro**
+
+After merging to main, spawn `paivot-graph:retro` to extract learnings:
+
+```
+EPIC RETRO for epic EPIC_ID.
+
+Extract LEARNINGS from all accepted stories in this epic. Analyze patterns
+across developer delivery notes and PM review feedback. Distill actionable
+insights and write them to the project vault (.vault/knowledge/).
+
+Epic: EPIC_ID
+```
+
+The retro agent is ephemeral -- it runs, captures knowledge, and is disposed.
+Do NOT skip this step. Do NOT rotate to the next epic before retro completes.
+
+**After retro**: if `epic_complete` included a `next_epic`, run
 `pvg loop rotate <next_epic>` to transition the loop state, then resume
 with `pvg loop next --json`. If no `next_epic` was provided, the next
 call returns `complete` (all done).
