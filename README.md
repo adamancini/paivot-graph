@@ -157,6 +157,23 @@ Eight specialized agents that read their full instructions from the vault at run
 | **pm** | Ephemeral -- accepts or rejects delivered stories using evidence-based review |
 | **retro** | Ephemeral -- extracts learnings from completed epics |
 
+### Model allocation
+
+The plugin assigns models to balance cost and capability. The dispatcher runs on Sonnet (protocol following, highest-frequency call), while judgment-heavy agents use Opus:
+
+| Agent | Model | Rationale |
+|-------|-------|-----------|
+| Dispatcher (`/piv-loop`) | Sonnet | Procedural coordination + context injection. Runs every iteration -- largest cost savings. |
+| Developer | Opus | Code generation requires maximum reasoning. |
+| PM-Acceptor | Opus | Quality gate -- false acceptance is the most expensive failure mode. |
+| Sr PM | Opus | Story creation needs domain reasoning and precise terminology. |
+| Anchor | Opus | Adversarial review needs strongest reasoning to find gaps. |
+| BA / Designer / Architect | Opus | D&F requires deep domain reasoning. |
+| Challengers (BA/Designer/Architect) | Sonnet | Scoped adversarial critique against a single document. |
+| Retro | Sonnet | Pattern extraction from completed work. |
+
+Rate limits are per-model. If you hit limits on one model, the other tier remains available. Moving the dispatcher to Sonnet means execution loops don't compete with Opus-heavy developer and PM agents for rate limit headroom.
+
 ### Execution workflow
 
 The execution loop (`/piv-loop`) drives stories through development, review, and delivery. Two structural gates enforce quality:
