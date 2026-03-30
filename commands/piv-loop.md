@@ -90,6 +90,24 @@ You MAY use nd directly for:
 - Bug triage routing (DISCOVERED_BUG blocks)
 - Epic auto-close checks after PM acceptance
 
+### nd dependency commands (reference)
+
+Dependencies are managed by `nd dep`, NOT by flags on `nd update`:
+
+```bash
+nd dep add A B          # A depends on B (B blocks A)
+nd dep rm A B           # Remove dependency
+nd dep list A           # List dependencies of A
+nd dep tree A           # Show full dependency tree
+nd dep cycles           # Detect circular dependencies
+```
+
+**Auto-cascade:** When a blocker is closed, nd automatically unblocks dependents.
+You do NOT need to manually run `nd dep rm` after closing a blocker story.
+
+**`nd update` does NOT support `--remove-blocked-by` or `--add-blocked-by`.**
+These flags do not exist. Always use `nd dep add` / `nd dep rm` for dependency changes.
+
 ### Bug Triage (Overrides Iteration Protocol)
 
 After any Developer or PM-Acceptor agent completes, scan its output for
