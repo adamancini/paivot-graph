@@ -286,6 +286,41 @@ Common divergence patterns to catch:
 - Unit mismatches (stories say `km`, ARCHITECTURE.md says `miles`)
 - PK type differences (stories use nanoid, ARCHITECTURE.md uses serial int)
 
+### API Signature Verification (MANDATORY -- run BEFORE Pre-Anchor Self-Check)
+
+The #1 cause of Anchor rejections is hallucinated API signatures. D&F documents
+describe APIs at a high level -- the Sr PM then guesses the exact function signatures
+instead of reading the source. This ALWAYS fails.
+
+**For every API referenced in any story's PRODUCES or CONSUMES:**
+
+1. **Read the actual source file.** Not the D&F doc. Not the Architect's description.
+   The actual `.ex` / `.ts` / `.py` file in the repo or deps.
+2. **Copy the exact `@spec` / `@callback` / type signature** into the story.
+3. **For framework APIs (Jido, Phoenix, Ecto, etc.):** read the source in `deps/`,
+   not your training data. Framework APIs evolve between versions.
+4. **For project wrapper patterns:** check if the project wraps a library API
+   (e.g., `Praktical.AI.Generator` wrapping `Jido.AI`). If so, stories must
+   reference the WRAPPER, not the underlying library.
+
+```bash
+# Find the actual module definition:
+grep -rn "defmodule.*ModuleName" lib/ deps/ --include="*.ex" | head -5
+
+# Extract @spec and @callback annotations:
+grep -n "@spec\|@callback" <file_path>
+
+# Verify module counts (never trust D&F numbers):
+grep -rl "ModuleName.function_name" lib/ --include="*.ex" | wc -l
+```
+
+**If you cannot find a source file for an API you're referencing, STOP.**
+The API may not exist yet, or you may have the wrong module name. Ask the
+dispatcher to clarify before writing stories with unverified signatures.
+
+Do NOT proceed to Pre-Anchor Self-Check until every API signature in every
+story has been verified against source.
+
 ### Pre-Anchor Self-Check (CRITICAL -- run BEFORE submitting to Anchor)
 
 The Anchor is an adversarial reviewer. If it finds issues, that means I missed them.
