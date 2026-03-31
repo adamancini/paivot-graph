@@ -124,8 +124,21 @@ CONSUMES:
 ### Cross-Cutting Concern Discovery (MANDATORY during story creation)
 
 When writing stories that involve security, configuration, observability, or other
-cross-cutting concerns, SEARCH THE CODEBASE for existing modules:
+cross-cutting concerns, SEARCH THE CODEBASE for existing modules.
 
+**Preferred: codebase-memory-mcp** (when available):
+```
+# Find DLP, rate limiting, audit, config modules:
+search_graph(project_name="<project>", name_pattern=".*DLP.*|.*RateLimit.*|.*Audit.*|.*Config.*")
+
+# Get exact API signatures:
+get_code_snippet(project_name="<project>", node_name="DLP.scan")
+
+# Trace who calls it (verify actual usage count):
+trace_call_path(project_name="<project>", function_name="DLP.scan", direction="inbound")
+```
+
+**Fallback: grep** (when MCP tools are not available):
 ```bash
 grep -rl "defmodule\|class\|module" lib/ src/ --include="*.ex" --include="*.ts" --include="*.py" | head -50
 ```
@@ -303,7 +316,29 @@ instead of reading the source. This ALWAYS fails.
    (e.g., `Praktical.AI.Generator` wrapping `Jido.AI`). If so, stories must
    reference the WRAPPER, not the underlying library.
 
+**Preferred: use codebase-memory-mcp tools when available.** These are indexed,
+faster, and understand module relationships. Fall back to grep only if MCP tools
+are not available or the project is not indexed.
+
+```
+# PREFERRED: codebase-memory-mcp (use MCP tools if available)
+
+# Find module by name pattern:
+search_graph(project_name="<project>", name_pattern=".*ModuleName.*", label="Function")
+
+# Read exact function signature:
+get_code_snippet(project_name="<project>", node_name="ModuleName.function_name")
+
+# Count callers of a function (verify module counts):
+trace_call_path(project_name="<project>", function_name="ModuleName.function_name", direction="inbound")
+
+# Find all functions in a module:
+search_graph(project_name="<project>", name_pattern="ModuleName\\..*", label="Function")
+```
+
 ```bash
+# FALLBACK: grep (when MCP tools are not available)
+
 # Find the actual module definition:
 grep -rn "defmodule.*ModuleName" lib/ deps/ --include="*.ex" | head -5
 
