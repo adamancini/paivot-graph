@@ -70,6 +70,10 @@ Context:
 [Relevant architecture decisions from ARCHITECTURE.md]
 [Relevant design requirements from DESIGN.md]
 
+USER INTENT:
+[What the user needs to trust, achieve, or rely on. Not acceptance criteria --
+the underlying need that the AC serves. PM-Acceptor evaluates against this.]
+
 IMPLEMENTATION:
 [What to build/change]
 [Technology/patterns to use]
@@ -83,8 +87,9 @@ TESTING:
 [Coverage requirements: default (unit + integration) or hard-tdd]
 
 Acceptance Criteria:
-1. [Testable, specific criterion]
-2. [Testable, specific criterion]
+(Tag with EARS categories where they sharpen intent -- see EARS Reference)
+1. [Category] [Testable, specific criterion]
+2. [Category] [Testable, specific criterion]
 ...
 
 MANDATORY SKILLS TO REVIEW:
@@ -125,6 +130,25 @@ Acceptance Criteria:
 MANDATORY SKILLS TO REVIEW:
 [skill-name if applicable, or "None identified"]
 ```
+
+---
+
+## EARS Reference
+
+EARS (Easy Approach to Requirements Syntax) categories tag acceptance criteria by behavioral type.
+The primary value is forcing consideration of **Unwanted** and **State** behaviors -- categories
+that both humans and LLMs consistently under-specify.
+
+| Category | Pattern | Use for |
+|---|---|---|
+| **Ubiquitous** | The system shall [behavior] | Always-true invariants |
+| **Event** | When [trigger], the system shall [response] | User actions, API calls, incoming data |
+| **State** | While [condition], the system shall [behavior] | Ongoing states, modes, connection status |
+| **Optional** | Where [feature/config], the system shall [behavior] | Feature flags, optional capabilities |
+| **Unwanted** | The system shall not [behavior] even when [provocation] | Security boundaries, data integrity, error containment |
+
+Not every AC needs a tag. Use them where they sharpen intent -- especially **Unwanted** and **State**.
+These two categories catch the edge cases that plain AC consistently misses.
 
 ---
 
@@ -227,6 +251,11 @@ Part of User Authentication epic (supports HIPAA compliance per BUSINESS.md). Fi
 onboarding journey (DESIGN.md user journey #1). PostgreSQL for user storage (ARCHITECTURE.md 4.2),
 bcrypt cost 12 for password hashing (ARCHITECTURE.md 5.1).
 
+USER INTENT:
+A new user needs to create an account quickly and trust that their credentials are safe.
+Registration must feel simple (minimal fields, clear feedback) and must never expose or
+mishandle their password.
+
 IMPLEMENTATION:
 - POST /api/auth/register endpoint
 - Accepts: { email, password, confirmPassword }
@@ -260,18 +289,20 @@ Test paths:
 - Email already exists → 409 conflict, "email" field marked
 
 Acceptance Criteria:
-1. Registration form renders with all 3 fields (email, password, confirmPassword) per DESIGN.md wireframe #3
-2. Email field validates RFC 5322 format in real-time
-3. Password requires 8+ characters, 1 uppercase letter, 1 number
-4. Confirm password must match password field
-5. Password hashed with bcrypt cost 12 before database storage (NOT plaintext)
-6. Successful registration creates user in PostgreSQL users table
-7. Success response: { userId, token, redirectUrl: "/dashboard" }
-8. User redirected to /dashboard with flash message "Account created"
-9. Validation error messages display inline below field in red
-10. All validation paths tested (unit tests for validation logic)
-11. Integration test: POST /api/auth/register → user created in database
-12. Test coverage: minimum 85% (unit + integration combined)
+1. [Ubiquitous] Registration form renders with all 3 fields (email, password, confirmPassword) per DESIGN.md wireframe #3
+2. [Event] On email input, validates RFC 5322 format in real-time
+3. [Ubiquitous] Password requires 8+ characters, 1 uppercase letter, 1 number
+4. [Ubiquitous] Confirm password must match password field
+5. [Ubiquitous] Password hashed with bcrypt cost 12 before database storage
+6. [Event] On valid submission, creates user in PostgreSQL users table
+7. [Event] On success, returns { userId, token, redirectUrl: "/dashboard" }
+8. [Event] On success, redirects to /dashboard with flash message "Account created"
+9. [Event] On validation failure, error messages display inline below field in red
+10. [Unwanted] System shall not store plaintext passwords under any code path
+11. [Unwanted] System shall not create partial user records on validation failure (atomic insert)
+12. All validation paths tested (unit tests for validation logic)
+13. Integration test: POST /api/auth/register → user created in database
+14. Test coverage: minimum 85% (unit + integration combined)
 
 MANDATORY SKILLS TO REVIEW:
 None identified (standard CRUD + validation)
@@ -280,6 +311,8 @@ None identified (standard CRUD + validation)
 **Why it's good:**
 - Developer has EVERYTHING in one story
 - No need to read external files
+- USER INTENT tells the PM-Acceptor what "success" really means beyond checkboxes
+- EARS tags force Unwanted items (plaintext password, partial records) that plain AC misses
 - Specific and testable acceptance criteria
 - Clear implementation guidance
 - Test strategy explicit
@@ -710,7 +743,8 @@ Before approving a story, verify developer has EVERYTHING:
 - ☐ Architecture context embedded (from ARCHITECTURE.md)
 - ☐ Design context embedded (from DESIGN.md)
 - ☐ Business context embedded (from BUSINESS.md)
-- ☐ Specific, testable acceptance criteria
+- ☐ USER INTENT section present (the underlying user need, not just ACs)
+- ☐ Specific, testable acceptance criteria (EARS-tagged where it sharpens intent)
 - ☐ Key files to modify (scope boundaries)
 - ☐ Testing requirements (unit vs integration, coverage target)
 - ☐ Relevant skills annotated (if applicable)
@@ -769,6 +803,12 @@ A single renamed column causes Anchor rejection and cascading developer failures
 
 ## Changelog
 
+- 2026-03-31: Added EARS categories and User Intent
+  - EARS Reference section (Ubiquitous, Event, State, Optional, Unwanted)
+  - USER INTENT field in story template (PM-Acceptor evaluates against this)
+  - EARS category tags on acceptance criteria (writing discipline, not a gate)
+  - Updated Good Example 1 with User Intent + EARS tags including Unwanted items
+  - Updated Self-Containment Checklist
 - 2026-03-07: Created Sr PM Playbook incorporating best patterns from old goose YAML
   - Added 3 templates (epic, task, bug)
   - Added 4 examples (2 bad, 2 good)
