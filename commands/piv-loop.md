@@ -139,7 +139,8 @@ The loop drains one epic at a time:
 3. **Complete**: when all stories are accepted and merged to the epic branch,
    `pvg loop next --json` returns `epic_complete`
 4. **Gate**: run the epic completion gate (e2e tests + Anchor milestone review + merge to main)
-5. **Rotate**: call `pvg loop rotate <next_epic>` to transition loop state, then continue iterating
+5. **Retro**: spawn `paivot-graph:retro` to extract learnings before rotating
+6. **Rotate**: call `pvg loop rotate <next_epic>` to transition loop state, then continue iterating
 
 Epic completion is a GATE, not a passthrough. The full gate (e2e, Anchor, merge to main)
 MUST finish before rotation. There is no cherry-picking across epics.
@@ -619,6 +620,8 @@ dispatcher ensures the context is actually complete.
 | Sr. PM (bug triage) | `paivot-graph:sr-pm` | DISCOVERED_BUG blocks found in agent output |
 | PM-Acceptor | `paivot-graph:pm` | Stories with `delivered` label |
 | Developer | `paivot-graph:developer` | Ready or rejected stories |
+| Retro | `paivot-graph:retro` | After epic completion gate passes (before rotation) |
+| Anchor | `paivot-graph:anchor` | Backlog review or milestone review during epic gate |
 
 ## Developer Spawning: Normal vs Hard-TDD
 
