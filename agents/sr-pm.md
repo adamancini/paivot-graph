@@ -188,7 +188,41 @@ the epic cannot merge to main.
    ```
    Both must pass. Fix any failures before proceeding. These are deterministic
    checks -- if they fail, the Anchor WILL reject the backlog for the same reason.
+   **If `pvg lint` reports artifact collisions, see Collision Resolution below.**
 9. Present backlog for review
+
+### Artifact Collision Resolution
+
+When `pvg lint` reports collisions, multiple stories PRODUCE the same file path
+without a recognized dependency chain. Lint understands chains -- if Story B has
+Story A in `blocked_by` or CONSUMES from Story A, they can both PRODUCE the same
+file (sequential modification). Lint walks transitive dependencies, so A -> B -> C
+is also recognized as a valid chain.
+
+**Resolution strategies (in order of preference):**
+
+1. **Establish the chain** (most common fix): If one story logically modifies the
+   file after another, add `blocked_by` to the later story AND add a CONSUMES
+   entry referencing the upstream story for that file. This tells lint the
+   modification is sequential.
+
+   ```
+   # Story B modifies a file that Story A creates:
+   blocked_by: [STORY-A]
+
+   CONSUMES:
+   - STORY-A: lib/auth.ex -> AuthService module
+   ```
+
+2. **Merge stories**: If two stories modify the same file and are tightly coupled
+   (hard to separate their changes), merge them into one story.
+
+3. **Split the file**: If two stories produce genuinely independent functionality
+   that happens to land in the same file, split the file so each story owns its
+   output exclusively.
+
+**Do NOT** create artificial chains just to pass lint. If two stories truly need
+to modify the same file independently, that is a design problem -- fix the design.
 
 ### Feedback Generalization Protocol
 

@@ -572,6 +572,7 @@ Before declaring backlog ready, verify all of these:
 - ☐ Coverage checklist complete (every D&F point represented)
 - ☐ Backlog prioritized appropriately
 - ☐ Anchor pre-reviewed (if doing formal validation)
+- ☐ `pvg lint` passes (no artifact collisions -- see Collision Resolution below)
 
 **When ready:**
 
@@ -790,6 +791,41 @@ A single renamed column causes Anchor rejection and cascading developer failures
 
 ---
 
+## Artifact Collision Resolution
+
+When `pvg lint` reports collisions, multiple stories PRODUCE the same file path
+without a recognized dependency chain. Lint understands chains -- if Story B has
+Story A in `blocked_by` or CONSUMES from Story A, they can both PRODUCE the same
+file (sequential modification). Lint walks transitive dependencies, so A -> B -> C
+is also recognized as a valid chain.
+
+**Resolution strategies (in order of preference):**
+
+1. **Establish the chain** (most common fix): If one story logically modifies the
+   file after another, add `blocked_by` to the later story AND add a CONSUMES
+   entry referencing the upstream story for that file. This tells lint the
+   modification is sequential.
+
+   ```
+   # Story B modifies a file that Story A creates:
+   blocked_by: [STORY-A]
+
+   CONSUMES:
+   - STORY-A: lib/auth.ex -> AuthService module
+   ```
+
+2. **Merge stories**: If two stories modify the same file and are tightly coupled
+   (hard to separate their changes), merge them into one story.
+
+3. **Split the file**: If two stories produce genuinely independent functionality
+   that happens to land in the same file, split the file so each story owns its
+   output exclusively.
+
+**Do NOT** create artificial chains just to pass lint. If two stories truly need
+to modify the same file independently, that is a design problem -- fix the design.
+
+---
+
 ## Related
 
 - [[Two-Level Branch Model]] — How stories are merged
@@ -803,6 +839,9 @@ A single renamed column causes Anchor rejection and cascading developer failures
 
 ## Changelog
 
+- 2026-03-31: Added Artifact Collision Resolution section
+  - Resolution strategies: establish chain, merge stories, split file
+  - Added pvg lint check to Phase 7 checklist
 - 2026-03-31: Added EARS categories and User Intent
   - EARS Reference section (Ubiquitous, Event, State, Optional, Unwanted)
   - USER INTENT field in story template (PM-Acceptor evaluates against this)
