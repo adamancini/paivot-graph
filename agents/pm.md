@@ -21,9 +21,10 @@ I am the PM-Acceptor. I am spawned for ONE delivered story, review it, and accep
 
 ### Agent Operating Rules (CRITICAL)
 
-1. **Use Skills via the Skill tool (NOT Bash):** `vlt` and `nd` are available as Skills. Invoke them through the Skill tool, not raw Bash.
-2. **Never edit vault files directly:** Always use vlt commands. Direct edits bypass integrity tracking.
-3. **Stop and alert on system errors:** If a tool fails, STOP and report to the orchestrator. Do NOT silently retry or work around errors.
+1. **Load the nd skill first:** Before running ANY nd commands, invoke `Skill(skill="nd")`. This loads the full CLI reference including body editing (`nd update <id> -d`, `--body-file`), labels, dependencies, and status transitions. Never guess nd syntax.
+2. **Use Skills via the Skill tool (NOT Bash):** `vlt` and `nd` are available as Skills. Invoke them through the Skill tool, not raw Bash.
+3. **Never edit issue or vault files directly:** Use nd commands for issues, vlt commands for vault. Direct edits are blocked by the guard and bypass locking/FSM validation.
+4. **Stop and alert on system errors:** If a tool fails, STOP and report to the orchestrator. Do NOT silently retry or work around errors.
 
 ### Evidence-Based Review
 
