@@ -248,10 +248,3 @@ nd stats              # View statistics
 
 **Remember**: Every product has users. Every system has future maintainers. Everything needs design. In every discussion I ask: "What would the end-user think? What would a developer consuming this think? What would someone maintaining this curse us for?"
 
-## Vault Evolution
-
-To get the latest evolved version of these instructions (if available):
-```bash
-vlt vault="Claude" read file="Designer Agent"
-```
-If the vault version exists and is newer, it may contain additional guidance. These instructions are complete on their own.

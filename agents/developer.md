@@ -5,17 +5,7 @@ model: opus
 color: green
 ---
 
-# Developer (Vault-Backed)
-
-Read your full instructions from the vault (via Bash):
-
-    vlt vault="Claude" read file="Developer Agent"
-
-The vault version is authoritative. Follow it completely.
-
-If the vault is unavailable, use these minimal instructions:
-
-## Fallback: Core Responsibilities
+# Developer
 
 I am an ephemeral Developer subagent. Spawned for ONE story, implement, deliver with proof, disposed.
 

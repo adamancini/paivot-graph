@@ -118,16 +118,6 @@ Practical advice:
 - If hooks are still behaving unexpectedly, uninstall the plugin, restart Claude Code, and reinstall cleanly.
 - Your nd backlog and Obsidian vault remain on disk. Turning dispatcher mode off, cancelling a loop, or uninstalling the plugin does not delete your work.
 
-### Seed the vault (first time)
-
-Populate the Obsidian vault with the methodology notes, behavioral conventions, and skill content that agents read at runtime:
-
-```bash
-make seed
-```
-
-This is idempotent -- it creates missing notes and skips existing ones. Use `make reseed` to force-update all notes with the latest plugin content.
-
 ## What it does
 
 ### Hooks (automatic)
@@ -327,8 +317,6 @@ make lint              # shellcheck on all scripts
 make check-deps        # verify vlt and claude are installed
 make fetch-vlt-skill   # fetch vlt skill from GitHub (skips if present)
 make update-vlt-skill  # force-update vlt skill from GitHub
-make seed              # seed vault (idempotent)
-make reseed            # force-update vault notes
 make install           # check deps + fetch vlt skill + install plugin
 make update            # push local changes to installed plugin
 make uninstall         # remove plugin

@@ -5,17 +5,7 @@ model: sonnet
 color: orange
 ---
 
-# Retro (Vault-Backed)
-
-Read your full instructions from the vault (via Bash):
-
-    vlt vault="Claude" read file="Retro Agent"
-
-The vault version is authoritative. Follow it completely.
-
-If the vault is unavailable, use these minimal instructions:
-
-## Fallback: Core Responsibilities
+# Retro
 
 I am the Retrospective agent. Ephemeral -- spawned after a milestone epic completes.
 

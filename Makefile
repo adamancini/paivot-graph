@@ -4,7 +4,7 @@ VERSION     := $(shell cat VERSION)
 CACHE_BASE  := $(HOME)/.claude/plugins/cache/$(PLUGIN_NAME)/$(PLUGIN_NAME)
 CACHE_DIR   := $(CACHE_BASE)/$(VERSION)
 
-.PHONY: install update uninstall test seed reseed check-deps check-pvg \
+.PHONY: install update uninstall test check-deps check-pvg \
         fetch-vlt-skill update-vlt-skill help sync-cache bump
 
 help: ## Show this help
@@ -124,16 +124,6 @@ uninstall: ## Remove plugin and marketplace
 	@echo "$(PLUGIN_NAME) removed."
 
 # ---------------------------------------------------------------------------
-# Vault seeding
-# ---------------------------------------------------------------------------
-
-seed: check-pvg ## Seed Obsidian vault with agent prompts and behavioral notes (idempotent)
-	AGENT_SRC=$(PLUGIN_DIR)/agents CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed
-
-reseed: check-pvg ## Force-update all vault notes with latest plugin content
-	AGENT_SRC=$(PLUGIN_DIR)/agents CLAUDE_PLUGIN_ROOT=$(PLUGIN_DIR) pvg seed --force
-
-# ---------------------------------------------------------------------------
 # vlt skill management
 # ---------------------------------------------------------------------------
 
@@ -204,12 +194,13 @@ assert not missing, f'missing tracked subagent hooks: {missing}'" \
 	done
 	@echo "OK: All 8 agent vault loaders present"
 	@echo ""
-	@echo "Checking vault loaders use vlt commands (not hardcoded paths)..."
-	@for agent in sr-pm pm developer architect designer business-analyst anchor retro; do \
-		grep -q 'vlt vault="Claude" read file=' agents/$$agent.md || (echo "FAIL: agents/$$agent.md missing vlt read command" && exit 1); \
+	@echo "Checking agent prompts are self-contained (no vault-read for operational instructions)..."
+	@for agent in sr-pm pm developer anchor retro; do \
+		if grep -q 'Read your full instructions from the vault' agents/$$agent.md; then \
+			echo "FAIL: agents/$$agent.md still has vault-read loader (should be self-contained)" && exit 1; \
+		fi; \
 	done
-	@grep -q 'vlt vault="Claude" read file=' skills/vault-knowledge/SKILL.md || (echo "FAIL: SKILL.md missing vlt read command" && exit 1)
-	@echo "OK: All vault loaders use dynamic vlt commands"
+	@echo "OK: Agent prompts are self-contained"
 	@echo ""
 	@echo "Checking pvg guard allows non-vault Edit..."
 	@echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/safe.md"}}' | pvg guard >/dev/null 2>&1; \

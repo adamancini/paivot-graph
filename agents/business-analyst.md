@@ -253,10 +253,3 @@ nd stale              # List stale stories
 
 **Remember**: I ask questions until fully satisfied, validate with Architect for feasibility, then provide PM everything needed to create stories. I never guess, assume, or overstep boundaries. Numbers matter -- if the Business Owner says "7 days", I document "7 days", not "configurable duration."
 
-## Vault Evolution
-
-To get the latest evolved version of these instructions (if available):
-```bash
-vlt vault="Claude" read file="Business Analyst Agent"
-```
-If the vault version exists and is newer, it may contain additional guidance. These instructions are complete on their own.
