@@ -445,6 +445,16 @@ for branch in $(git branch --list "story/*"); do
 done
 ```
 
+```bash
+# Clean up PM isolation branches (worktree-agent-* left behind by Claude Code)
+git branch -r --list "origin/worktree-agent-*" | sed 's|remotes/origin/||' | while read br; do
+  git push origin --delete "$br" 2>/dev/null || true
+done
+git branch --list "worktree-agent-*" | while read br; do
+  git branch -D "$br" 2>/dev/null || true
+done
+```
+
 **If `workflow.solo_dev=false`** (team workflow, PRs required):
 
 ```bash
@@ -509,8 +519,8 @@ You are a dispatcher. You coordinate agents and manage git integration. You NEVE
 
 If a developer agent fails, returns partial output, or times out:
 1. Check story status via `pvg nd show <STORY_ID> --json` (NOT by inspecting the worktree)
-2. If NOT delivered: `cd $PROJECT_ROOT && pvg worktree remove .claude/worktrees/dev-<STORY_ID>`, re-spawn a fresh developer with corrective guidance
-3. If delivered: `cd $PROJECT_ROOT && pvg worktree remove .claude/worktrees/dev-<STORY_ID>`, proceed with PM review
+2. If NOT delivered: run `cd $PROJECT_ROOT && pwd`, then `pvg worktree remove .claude/worktrees/dev-<STORY_ID>`, then re-spawn a fresh developer with corrective guidance
+3. If delivered: run `cd $PROJECT_ROOT && pwd`, then `pvg worktree remove .claude/worktrees/dev-<STORY_ID>`, then proceed with PM review
 4. NEVER cd into the worktree to check what happened, run git log, or try to continue the agent
 
 The developer's worktree is their workspace. If they failed, their workspace is suspect.
@@ -725,18 +735,30 @@ management (see "PM Isolation" below).
 2. Dispatcher creates dev worktree: `git worktree add .claude/worktrees/dev-<STORY_ID> story/<STORY_ID>`
 3. Developer works, commits, pushes on `story/<STORY_ID>`
 4. Developer marks delivered
-5. Dispatcher removes dev worktree: `cd $PROJECT_ROOT && pvg worktree remove .claude/worktrees/dev-<STORY_ID>`
+5. Dispatcher resets to project root, then removes dev worktree: `cd $PROJECT_ROOT && pwd` followed by `pvg worktree remove .claude/worktrees/dev-<STORY_ID>`
 6. Dispatcher spawns PM with `isolation: "worktree"` (see PM Isolation below)
 7. PM checks out `story/<STORY_ID>`, reviews, accepts or rejects
-8. Claude Code auto-cleans the PM worktree (PM makes no tracked file changes)
+8. Claude Code auto-cleans the PM worktree **directory** (PM makes no tracked file
+   changes), but does **not** delete the `worktree-agent-*` branch. Delete it
+   immediately after the PM agent completes:
+   ```bash
+   # Clean up the PM isolation branch Claude Code leaves behind
+   git branch -r --list "origin/worktree-agent-*" | sed 's|remotes/origin/||' | while read br; do
+     git push origin --delete "$br" 2>/dev/null || true
+   done
+   git branch --list "worktree-agent-*" | while read br; do
+     git branch -D "$br" 2>/dev/null || true
+   done
+   ```
 9. If accepted: merge story branch to epic, then delete story branch
 10. If rejected: re-create dev worktree, re-spawn developer with rejection feedback
 
 ### Cleanup Rules
 
-**Always prefix removal with `cd $PROJECT_ROOT &&`:**
+**Always reset to project root before removal:**
 ```bash
-cd $PROJECT_ROOT && pvg worktree remove .claude/worktrees/<worktree-name>
+cd $PROJECT_ROOT && pwd
+pvg worktree remove .claude/worktrees/<worktree-name>
 ```
 
 `pvg worktree remove` resolves the project root from the worktree path (not CWD),
@@ -745,8 +767,17 @@ it also **refuses** removal if the caller's CWD is inside the target worktree --
 this prevents the session-killing CWD corruption bug where removing a directory
 that is also the shell CWD makes all subsequent Bash commands fail permanently.
 
-The `cd $PROJECT_ROOT &&` prefix is belt-and-suspenders: it resets CWD before
-removal, and `pvg worktree remove` catches it if you forget.
+The reset step is structural, not stylistic: after a developer or PM agent
+completes, Claude Code may hand control back with the agent's worktree still as
+the parent shell CWD. Reset first, then remove:
+```bash
+cd $PROJECT_ROOT && pwd
+pvg worktree remove .claude/worktrees/<worktree-name>
+```
+
+`pvg worktree remove` is belt-and-suspenders after that reset: it resolves the
+project root from the worktree path and refuses CWD-inside removal if the shell
+is still standing inside the target worktree.
 
 **Do NOT delete the story branch when removing a worktree.** The worktree is a checkout;
 the branch is the record. Story branches are deleted ONLY after merging to the epic branch:
@@ -770,7 +801,7 @@ Always create developer worktrees manually on the story branch.
 only review code, run tests, and mutate nd (which writes to the shared vault,
 not to the worktree). `isolation: "worktree"` gives PMs a completely isolated
 shell that the dispatcher never needs to manage or clean up. This eliminates
-the CWD corruption risk for PM operations entirely.
+the CWD corruption risk for PM operations entirely. However, Claude Code auto-cleans the worktree **directory** but NOT the `worktree-agent-*` **branch**. That branch persists locally and on remote after every PM review. Delete it as shown in step 8 above.
 
 ### PM Isolation
 
@@ -861,10 +892,11 @@ Three layers prevent this failure mode:
 1. **Layer 1 (prevention): `cd $PROJECT_ROOT &&` prefix.**
    All worktree removal commands MUST be prefixed with an explicit cd:
    ```bash
-   cd $PROJECT_ROOT && pvg worktree remove .claude/worktrees/dev-STORY_ID
+   cd $PROJECT_ROOT && pwd
+   pvg worktree remove .claude/worktrees/dev-STORY_ID
    ```
-   This resets CWD before removal, so even if it had drifted, the shell
-   survives the deletion.
+   This resets CWD before removal, so the parent shell is back on solid ground
+   before the worktree disappears.
 
 2. **Layer 2 (guard): `pvg worktree remove` refuses CWD-inside removal.**
    Starting in v1.52.11, `pvg worktree remove` checks whether the caller's
@@ -891,18 +923,17 @@ Three layers prevent this failure mode:
   git worktree add .claude/worktrees/dev-X story/X
   ```
 
-- **After any agent completes (foreground or background), verify CWD:**
+- **After any developer or PM agent completes (foreground or background), the first Bash command must be a reset:**
   ```bash
-  pwd
+  cd $PROJECT_ROOT && pwd
   ```
-  If the output is inside `.claude/worktrees/`, reset immediately:
-  ```bash
-  cd $PROJECT_ROOT
-  ```
+  Only then should you run `pvg worktree remove`, `git worktree list`, or any
+  other dispatcher Bash command.
 
 - **Use `pvg worktree remove` instead of raw `git worktree remove`.**
   `pvg worktree remove` resolves the project root from the worktree path
-  (not from CWD) and enforces the CWD guard.
+  (not from CWD) and enforces the CWD guard, but it cannot rescue a host shell
+  that already failed to start because its own CWD points at a deleted path.
 
 ### Recovery (if CWD is already invalid)
 
