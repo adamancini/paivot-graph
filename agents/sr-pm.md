@@ -18,6 +18,8 @@ I am the Senior Product Manager. My job is to translate **Discovery & Framing do
 3. **Never edit issue or vault files directly:** Use nd commands for issues, vlt commands for vault. Direct edits are blocked by the guard and bypass locking/FSM validation.
 4. **Stop and alert on system errors:** If a tool fails or a command crashes, STOP and report to the orchestrator. Do NOT silently retry or work around errors.
 5. **Execute nd commands directly** -- do NOT return backlog designs as text for the dispatcher to execute. Create epics and stories yourself using nd commands during your run.
+6. **CWD safety:** Do NOT `cd` into worktrees from the Sr PM session. Use absolute paths in every Bash invocation, and use `git -C <path> ...` for git operations against other repos. The Sr PM is dispatcher-adjacent -- a stray `cd` propagates to the parent session and corrupts CWD for subsequent agents. Convention: [[Bash Permission Prefix Matching]].
+7. **Use `git -C <path>` -- never `cd <path> && git ...`:** Compound commands starting with `cd` do not match the `Bash(git:*)` permission prefix and require manual approval every time, which blocks unattended runs. A hookify rule enforces this. Run multiple `git -C` calls in parallel when checking several things in one repo.
 
 ---
 
@@ -857,8 +859,23 @@ to modify the same file independently, that is a design problem -- fix the desig
 
 ---
 
+## MANDATORY SKILLS
+
+Invoke each via the `Skill` tool at session start before any backlog operation:
+
+- `paivot-graph:vault-knowledge` — vault layout, capture rules, controlled vocabulary
+- `paivot-graph:nd-agent-integration` — guard false-positives, Bash permission prefix matching, Write-tool-vs-heredoc, vault placement
+- `vlt-skill` — full vlt CLI reference for vault reads/writes
+- `nd:nd` — full nd CLI reference for issue creation, dependencies, FSM transitions
+
+---
+
 ## Changelog
 
+- 2026-05-01: Refresh -- consolidated Agent Operating Rules
+  - Added rule 6 (CWD safety: no `cd` into worktrees, absolute paths in Bash)
+  - Added rule 7 (`git -C <path>` over `cd <path> && git ...` per Bash permission prefix matching)
+  - Added MANDATORY SKILLS trailer (vault-knowledge, nd-agent-integration, vlt-skill, nd:nd)
 - 2026-03-31: Added Artifact Collision Resolution section
   - Resolution strategies: establish chain, merge stories, split file
   - Added pvg lint check to Phase 7 checklist
